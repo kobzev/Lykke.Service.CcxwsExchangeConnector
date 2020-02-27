@@ -1,0 +1,19 @@
+name: Continuous integration
+
+on: [push] 
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Publish to Registry
+      uses: SC-Poc/Publish-Docker-Github-Action@master
+      with:
+        name: swisschains/cxws-exchange-adapter
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        workdir: .
+
+        tag_names: true
