@@ -108,7 +108,7 @@ class ExchangeEventsHandler {
         const base = symbol.substring(0, symbol.indexOf('/'))
         const quote = symbol.substring(symbol.indexOf("/") + 1)
         const suffixConfig = this._settings.Main.ExchangesNamesSuffix
-        const suffix = suffixConfig ? suffixConfig : "(w)"
+        const suffix = suffixConfig ? suffixConfig : ""
         const source = this._exchange.name.replace(this._exchange.version, "").trim()
         const publishingOrderBook = {}
         publishingOrderBook.source = source + suffix
