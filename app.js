@@ -52,24 +52,39 @@ async function subscribeToExchangeData(exchangeName, symbols) {
         return
     }
 
-    const availableMarkets = getAvailableMarketsForExchange(exchange, symbols)
-    if (availableMarkets.length === 0) {
-        log.warn(`${exchange.id} doesn't have any symbols from config.`)
+    try {
+        const availableMarkets = getAvailableMarketsForExchange(exchange, symbols)
+        if (availableMarkets.length === 0) {
+            log.warn(`${exchange.id} doesn't have any symbols from config.`)
+            return
+        }
+
+        const handler = new exchangeEventsHandler(exchange, settings, rabbitMq)
+
+        exchange_ws.on("l2snapshot", async orderBook => await handler.l2snapshotEventHandle(orderBook))
+        exchange_ws.on("l2update", async updateOrderBook => await handler.l2updateEventHandle(updateOrderBook))
+        exchange_ws.on("trade", async trade => await handler.tradesEventHandle(trade))
+
+        availableMarkets.forEach(market => {
+            try {
+                if (exchange_ws.hasLevel2Snapshots){
+                    exchange_ws.subscribeLevel2Snapshots(market)
+                } else {
+                    exchange_ws.subscribeLevel2Updates(market)
+                }
+
+                exchange_ws.subscribeTrades(market)
+
+            } catch (e) {
+                log.warn(`${exchange.id} can't subs markets: ${e}`)
+                return
+            }
+        });
+    } catch (e) {
+        log.warn(`${exchange.id} can't load markets: ${e}`)
         return
     }
 
-    const handler = new exchangeEventsHandler(exchange, settings, rabbitMq)
-
-    exchange_ws.on("l2snapshot", async orderBook => await handler.l2snapshotEventHandle(orderBook))
-    exchange_ws.on("l2update", async updateOrderBook => await handler.l2updateEventHandle(updateOrderBook))
-
-    availableMarkets.forEach(market => {
-        if (exchange_ws.hasLevel2Snapshots){
-            exchange_ws.subscribeLevel2Snapshots(market)
-        } else {
-            exchange_ws.subscribeLevel2Updates(market)
-        }
-    });
 }
 
 function getAvailableMarketsForExchange(exchange, symbols) {

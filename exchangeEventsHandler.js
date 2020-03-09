@@ -12,6 +12,8 @@ class ExchangeEventsHandler {
         this._rabbitMq = rabbitMq
         this._orderBooks = new sortedMap()
         this._lastTimePublished = new sortedMap()
+        this._lastAsk = new sortedMap()
+        this._lastBid = new sortedMap()
         this._log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
     }
 
@@ -20,13 +22,17 @@ class ExchangeEventsHandler {
         const internalOrderBook = this._mapCcxwsToInternal(orderBook)
         this._orderBooks.set(key, internalOrderBook)
 
-        const lastTimePublished = this._lastTimePublished.get(key)
-        if (!lastTimePublished || moment() - lastTimePublished > this._settings.Main.PublishingIntervalMs)
-        {
-            const publishingOrderBook = this._mapInternalToPublishing(internalOrderBook)
-            await this._publishOrderBook(publishingOrderBook)
-            await this._publishTickPrice(publishingOrderBook)
 
+        const publishingOrderBook = this._mapInternalToPublishing(internalOrderBook)
+        await this._publishTickPrice(publishingOrderBook)
+
+        const lastTimePublished = this._lastTimePublished.get(key)
+        const delay = moment.utc() - lastTimePublished
+        if (this._settings.Main.PublishingIntervalMs <= 0 
+            || !lastTimePublished 
+            || delay > this._settings.Main.PublishingIntervalMs)
+        {
+            await this._publishOrderBook(publishingOrderBook)
             this._lastTimePublished.set(key, moment.utc())
         }
     }
@@ -63,15 +69,22 @@ class ExchangeEventsHandler {
 
         internalOrderBook.timestamp = moment.utc()
 
-        const lastTimePublished = this._lastTimePublished.get(key)
-        if (!lastTimePublished || moment() - lastTimePublished > 1000)
-        {
-            const publishingOrderBook = this._mapInternalToPublishing(internalOrderBook)
-            await this._publishOrderBook(publishingOrderBook)
-            await this._publishTickPrice(publishingOrderBook)
+        const publishingOrderBook = this._mapInternalToPublishing(internalOrderBook)
+        await this._publishTickPrice(publishingOrderBook)
 
+        const lastTimePublished = this._lastTimePublished.get(key)
+        const delay = moment.utc() - lastTimePublished
+        if (this._settings.Main.PublishingIntervalMs <= 0 
+            || !lastTimePublished 
+            || delay > 1000)
+        {
+            await this._publishOrderBook(publishingOrderBook)
             this._lastTimePublished.set(key, moment.utc())
         }
+    }
+
+    async tradesEventHandle(trade) {
+        await this._rabbitMq.send(this._settings.RabbitMq.Trades, trade)
     }
 
     _mapCcxwsToInternal(ccxwsOrderBook) {
@@ -160,15 +173,26 @@ class ExchangeEventsHandler {
     }
     
     async _publishTickPrice(orderBook) {
-        const tickPrice = this._mapOrderBookToTickPrice(orderBook)
-        if (!tickPrice) {
-            return
-        }
-    
-        await this._rabbitMq.send(this._settings.RabbitMq.TickPrices, tickPrice)
 
-        this._log.debug(`TP: ${tickPrice.source} ${tickPrice.asset}, bid: ${tickPrice.bid}, ask:${tickPrice.ask}.`)
-    }
+        try {
+            const lastAsk = this._lastAsk.get(orderBook.exchange+'-'+orderBook.key)
+            const lastBid = this._lastBid.get(orderBook.exchange+'-'+orderBook.key)
+
+            const tickPrice = this._mapOrderBookToTickPrice(orderBook)
+            if (!tickPrice || (lastAsk === tickPrice.ask && tickPrice.bid === lastBid)) {
+                return
+            }
+        
+            await this._rabbitMq.send(this._settings.RabbitMq.TickPrices, tickPrice)
+
+            this._lastAsk.set(orderBook.exchange+'-'+orderBook.key, tickPrice.ask)
+            this._lastBid.set(orderBook.exchange+'-'+orderBook.key, tickPrice.bid)
+
+            this._log.debug(`TP: ${tickPrice.source} ${tickPrice.asset}, bid: ${tickPrice.bid}, ask:${tickPrice.ask}.`)
+        } catch (e) {
+            console.WriteLine(e)
+        }
+   }
     
     _mapOrderBookToTickPrice(publishingOrderBook) {
         const tickPrice = {}

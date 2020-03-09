@@ -14,6 +14,7 @@ async function getSettings() {
         if (settingsUrl.startsWith('http')){
             const response = await fetch(settingsUrl)
             const json = await response.json()
+            console.log(json)
             return json
         }
         // file
@@ -27,6 +28,8 @@ async function getSettings() {
     {
         console.log(error)
     }
+
+    console.log('!!!! Settings ERROR!!!!')
     
     throw "This point can't be reached."
 }

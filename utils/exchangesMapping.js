@@ -31,6 +31,8 @@ function MapExchangeCcxtToCcxws(ccxtExchangeName){
         case 'zb':
             return new ccxws.zb()
         default:
+            console.log('*******')
+            console.log(ccxtExchangeName)
             throw "This point can't be reached."
     }
 }
