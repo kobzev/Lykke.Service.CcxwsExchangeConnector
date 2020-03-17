@@ -68,7 +68,8 @@ class ExchangeEventsHandler {
         internalOrderBook.timestamp = moment.utc()
 
         const publishingOrderBook = this._mapInternalToPublishing(internalOrderBook)
-        await this._publishTickPrice(publishingOrderBook)
+        if (this._settings.RabbitMq.Publish.Quotes)
+            await this._publishTickPrice(publishingOrderBook)
 
         const lastTimePublished = this._lastTimePublished.get(key)
         const delay = moment.utc() - lastTimePublished
@@ -76,13 +77,10 @@ class ExchangeEventsHandler {
             || !lastTimePublished 
             || delay > 1000)
         {
-            await this._publishOrderBook(publishingOrderBook)
+            if (this._settings.RabbitMq.Publish.OrderBooks)
+                await this._publishOrderBook(publishingOrderBook)
             this._lastTimePublished.set(key, moment.utc())
         }
-    }
-
-    async tradesEventHandle(trade) {
-        await this._rabbitMq.send(this._settings.RabbitMq.Trades, trade)
     }
 
     _mapCcxwsToInternal(ccxwsOrderBook) {
@@ -167,7 +165,7 @@ class ExchangeEventsHandler {
     async _publishOrderBook(orderBook) {
         await this._rabbitMq.send(this._settings.RabbitMq.OrderBooks, orderBook)
     
-        this._log.debug(`OB: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}.`)
+        this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}.`)
     }
     
     async _publishTickPrice(orderBook) {
@@ -183,15 +181,24 @@ class ExchangeEventsHandler {
         
             await this._rabbitMq.send(this._settings.RabbitMq.TickPrices, tickPrice)
 
-            this._lastAsk.set(orderBook.exchange+'-'+orderBook.key, tickPrice.ask)
-            this._lastBid.set(orderBook.exchange+'-'+orderBook.key, tickPrice.bid)
+            this._lastAsk.set(orderBook.exchange + '-' + orderBook.key, tickPrice.ask)
+            this._lastBid.set(orderBook.exchange + '-' + orderBook.key, tickPrice.bid)
 
-            this._log.debug(`TP: ${tickPrice.source} ${tickPrice.asset}, bid: ${tickPrice.bid}, ask:${tickPrice.ask}.`)
+            this._log.debug(`Quote: ${tickPrice.source} ${tickPrice.asset}, bid: ${tickPrice.bid}, ask:${tickPrice.ask}.`)
         } catch (e) {
             console.WriteLine(e)
         }
-   }
+    }
     
+    async tradesEventHandle(trade) {
+        if (this._settings.RabbitMq.Publish.Trades)
+            await this._rabbitMq.send(this._settings.RabbitMq.Trades, trade)
+
+        let price = this._toFixedNumber(parseFloat(trade.price))
+        let amount = this._toFixedNumber(parseFloat(trade.amount))
+        this._log.debug(`Trade: ${trade.exchange}, ${trade.base}/${trade.quote}, price: ${price}, amount: ${amount}, side: ${trade.side}.`)
+    }
+
     _mapOrderBookToTickPrice(publishingOrderBook) {
         const tickPrice = {}
         tickPrice.source = publishingOrderBook.source

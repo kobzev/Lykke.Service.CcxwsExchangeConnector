@@ -78,12 +78,16 @@ async function subscribeToExchangeData(exchangeName, symbols) {
 
         availableMarkets.forEach(market => {
             try {
-                if (exchange_ws.hasLevel2Snapshots){
-                    exchange_ws.subscribeLevel2Snapshots(market)
-                } else {
-                    exchange_ws.subscribeLevel2Updates(market)
+                if (settings.Main.Subscribe.OrderBooks)
+                {
+                    if (exchange_ws.hasLevel2Snapshots)
+                        exchange_ws.subscribeLevel2Snapshots(market)
+                    else 
+                        exchange_ws.subscribeLevel2Updates(market)
                 }
-                exchange_ws.subscribeTrades(market)
+
+                if (settings.Main.Subscribe.Trades)
+                    exchange_ws.subscribeTrades(market)
             } catch (e) {
                 log.warn(`${exchange.id} can't subscribe : ${e}`)
                 return
