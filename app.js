@@ -41,21 +41,30 @@ async function subscribeToExchangesData() {
 }
 
 async function subscribeToExchangeData(exchangeName, symbols) {
-
     const exchange = new ccxt[exchangeName]()
     const exchange_ws = exchangesMapping.MapExchangeCcxtToCcxws(exchangeName)
     exchange_ws.reconnectIntervalMs = settings.Main.ReconnectIntervalMs
 
+    let allMarkets = []
+
     try {
         exchange.timeout = 30 * 1000
-        await exchange.loadMarkets()
+        allMarkets = await exchange.loadMarkets()
     } catch (e) {
         log.warn(`${exchange.id} can't load markets: ${e}`)
         return
     }
 
     try {
-        const availableMarkets = getAvailableMarketsForExchange(exchange, symbols)
+        let availableMarkets = []
+        if (symbols.includes('*')) {
+            for (var key of Object.keys(allMarkets)) {
+                availableMarkets.push(allMarkets[key])
+            }
+        } else {
+            availableMarkets = getAvailableMarketsForExchange(exchange, symbols)
+        }
+
         if (availableMarkets.length === 0) {
             log.warn(`${exchange.id} doesn't have any symbols from config.`)
             return
@@ -74,11 +83,9 @@ async function subscribeToExchangeData(exchangeName, symbols) {
                 } else {
                     exchange_ws.subscribeLevel2Updates(market)
                 }
-
                 exchange_ws.subscribeTrades(market)
-
             } catch (e) {
-                log.warn(`${exchange.id} can't subs markets: ${e}`)
+                log.warn(`${exchange.id} can't subscribe : ${e}`)
                 return
             }
         });
@@ -86,20 +93,17 @@ async function subscribeToExchangeData(exchangeName, symbols) {
         log.warn(`${exchange.id} can't load markets: ${e}`)
         return
     }
-
 }
 
 function getAvailableMarketsForExchange(exchange, symbols) {
     const result = []
-    
+
     for (const symbol of symbols) {
         let market = exchange.findMarket(assetPairsMapping.TryToMapAssetPairForward(symbol, exchange, settings))
         // Inversed - first trying to map, then try to use original
         // Example:
-        // in cofig symbols = BTC/USD, mapping = USD -> USDT
-        // logic: first try to find BTC/USDT, then BTC/USD
-        // because of Poloniex which ccxt shows has BTC/USD,
-        // but it doesn't work, BTC/USDT works.
+        // if in the cofig 'symbols' contains BTC/USD and 'mapping' contains USD -> USDT
+        // then it first tries to find BTC/USDT and if no such asset pair then looks for BTC/USD
         const exchangeHasMapped = typeof market === "object"
         if (exchangeHasMapped) {
             result.push(market)
