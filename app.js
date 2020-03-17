@@ -18,6 +18,8 @@ let rabbitMq
     settings = (await getSettings()).CcxwsExchangeConnector
     log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
 
+    log.info(`Main started...`)
+
     process.on('uncaughtException',  e => log.warn(`Unhandled error: ${e}, ${e.stack}.`))
     process.on('unhandledRejection', e => log.warn(`Unhandled error: ${e}, ${e.stack}.`))
 

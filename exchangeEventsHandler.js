@@ -1,5 +1,4 @@
 const moment = require('moment');
-const sortedMap = require("sorted-map");
 const path = require('path');
 const LogFactory =  require('./utils/logFactory')
 const mapping = require('./utils/assetPairsMapping')
@@ -10,10 +9,10 @@ class ExchangeEventsHandler {
         this._exchange = exchange
         this._settings = settings
         this._rabbitMq = rabbitMq
-        this._orderBooks = new sortedMap()
-        this._lastTimePublished = new sortedMap()
-        this._lastAsk = new sortedMap()
-        this._lastBid = new sortedMap()
+        this._orderBooks = new Map()
+        this._lastTimePublished = new Map()
+        this._lastAsk = new Map()
+        this._lastBid = new Map()
         this._log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
     }
 
@@ -21,7 +20,6 @@ class ExchangeEventsHandler {
         const key = orderBook.marketId
         const internalOrderBook = this._mapCcxwsToInternal(orderBook)
         this._orderBooks.set(key, internalOrderBook)
-
 
         const publishingOrderBook = this._mapInternalToPublishing(internalOrderBook)
         await this._publishTickPrice(publishingOrderBook)
@@ -51,7 +49,7 @@ class ExchangeEventsHandler {
             const updateAskPrice = parseFloat(ask.price)
             const updateAskSize = parseFloat(ask.size)
 
-            internalOrderBook.asks.del(updateAskPrice)
+            internalOrderBook.asks.delete(updateAskPrice)
             
             if (updateAskSize !== 0)
                 internalOrderBook.asks.set(updateAskPrice, updateAskSize)
@@ -61,7 +59,7 @@ class ExchangeEventsHandler {
             const updateBidPrice = parseFloat(bid.price)
             const updateBidSize = parseFloat(bid.size)
 
-            internalOrderBook.bids.del(updateBidPrice)
+            internalOrderBook.bids.delete(updateBidPrice)
 
             if (updateBidSize !== 0)
                 internalOrderBook.bids.set(updateBidPrice, updateBidSize)
@@ -88,7 +86,7 @@ class ExchangeEventsHandler {
     }
 
     _mapCcxwsToInternal(ccxwsOrderBook) {
-        const asks = new sortedMap();
+        const asks = new Map();
         ccxwsOrderBook.asks.forEach(ask => {
             const askPrice = parseFloat(ask.price)
             const askSize = parseFloat(ask.size)
@@ -96,7 +94,7 @@ class ExchangeEventsHandler {
             asks.set(askPrice, askSize)
         })
     
-        const bids = new sortedMap();
+        const bids = new Map();
         ccxwsOrderBook.bids.forEach(bid => {
             const bidPrice = parseFloat(bid.price)
             const bidSize = parseFloat(bid.size)
@@ -109,7 +107,7 @@ class ExchangeEventsHandler {
         internalOrderBook.assetPair = ccxwsOrderBook.marketId
         internalOrderBook.asks = asks
         internalOrderBook.bids = bids
-        // Some exchanges don't have a timestamp, as an example - Poloniex, shall be investigated
+        // some exchanges may not have a timestamp, for example Poloniex
         internalOrderBook.timestamp = moment.utc()
         
         return internalOrderBook
@@ -139,8 +137,8 @@ class ExchangeEventsHandler {
             if (size == 0)
                 continue
     
-            price = this._toFixed(price)
-            size = this._toFixed(size)
+            price = this._toFixedNumber(price)
+            size = this._toFixedNumber(size)
     
             bids.push({ 'price': price, 'volume': size })
         }
@@ -156,8 +154,8 @@ class ExchangeEventsHandler {
             if (size == 0)
                 continue
     
-            price = this._toFixed(price)
-            size = this._toFixed(size)
+            price = this._toFixedNumber(price)
+            size = this._toFixedNumber(size)
     
             asks.push({ 'price': price, 'volume': size })
         }
@@ -175,8 +173,8 @@ class ExchangeEventsHandler {
     async _publishTickPrice(orderBook) {
 
         try {
-            const lastAsk = this._lastAsk.get(orderBook.exchange+'-'+orderBook.key)
-            const lastBid = this._lastBid.get(orderBook.exchange+'-'+orderBook.key)
+            const lastAsk = this._lastAsk.get(orderBook.exchange + '-' + orderBook.key)
+            const lastBid = this._lastBid.get(orderBook.exchange + '-' + orderBook.key)
 
             const tickPrice = this._mapOrderBookToTickPrice(orderBook)
             if (!tickPrice || (lastAsk === tickPrice.ask && tickPrice.bid === lastBid)) {
@@ -218,7 +216,7 @@ class ExchangeEventsHandler {
         return tickPrice
     }
     
-    _toFixed(number) {
+    _toFixedNumber(number) {
         return number.toFixed(8).replace(/\.?0+$/,"")
     }
 }
