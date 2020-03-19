@@ -21,8 +21,8 @@ class RabbitMq {
         {
             const connection = await amqp.connect(this._settings.ConnectionString)
             const channel = await connection.createChannel()
+            await channel.assertExchange(this._settings.Quotes, 'fanout', {durable: false})
             await channel.assertExchange(this._settings.OrderBooks, 'fanout', {durable: false})
-            await channel.assertExchange(this._settings.TickPrices, 'fanout', {durable: false})
             await channel.assertExchange(this._settings.Trades, 'fanout', {durable: false})
         
             return channel
