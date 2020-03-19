@@ -72,13 +72,17 @@ async function subscribeToExchangeData(exchangeName, symbols) {
 
         const handler = new exchangeEventsHandler(exchange, settings, rabbitMq)
 
+        exchange_ws.on("ticker", async ticker => await handler.tickerEventHandle(ticker))
         exchange_ws.on("l2snapshot", async orderBook => await handler.l2snapshotEventHandle(orderBook))
         exchange_ws.on("l2update", async updateOrderBook => await handler.l2updateEventHandle(updateOrderBook))
         exchange_ws.on("trade", async trade => await handler.tradesEventHandle(trade))
 
         availableMarkets.forEach(market => {
             try {
-                if (settings.Main.Subscribe.OrderBooks)
+                if (settings.Main.Events.Quotes.Subscribe)
+                    exchange_ws.subscribeTicker(market)
+
+                if (settings.Main.Events.OrderBooks.Subscribe)
                 {
                     if (exchange_ws.hasLevel2Snapshots)
                         exchange_ws.subscribeLevel2Snapshots(market)
@@ -86,7 +90,7 @@ async function subscribeToExchangeData(exchangeName, symbols) {
                         exchange_ws.subscribeLevel2Updates(market)
                 }
 
-                if (settings.Main.Subscribe.Trades)
+                if (settings.Main.Events.Trades.Subscribe)
                     exchange_ws.subscribeTrades(market)
             } catch (e) {
                 log.warn(`${exchange.id} can't subscribe : ${e}`)
