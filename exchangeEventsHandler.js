@@ -19,6 +19,11 @@ class ExchangeEventsHandler {
     async tickerEventHandle(ticker) {
         let tickPrice = this._mapCcxwsTickerToPublishingTickPrice(ticker)
 
+        let isValid = tickPrice.ask > 0 && tickPrice.bid > 0
+
+        if (!isValid)
+            return;
+
         await this._publishTickPrice(tickPrice)
     }
 
@@ -196,8 +201,8 @@ class ExchangeEventsHandler {
         tickPrice.assetPair = { 'base': ticker.base, 'quote': ticker.quote }
         tickPrice.asset = ticker.base + ticker.quote
         tickPrice.timestamp = moment(ticker.timestamp / 1000).toISOString()
-        tickPrice.bid = ticker.bid
-        tickPrice.ask = ticker.ask
+        tickPrice.bid = parseFloat(ticker.bid)
+        tickPrice.ask = parseFloat(ticker.ask)
     
         return tickPrice
     }
