@@ -14,7 +14,6 @@ async function getSettings() {
         if (settingsUrl.startsWith('http')){
             const response = await fetch(settingsUrl)
             const json = await response.json()
-            console.log(json)
             return json
         }
         // file
