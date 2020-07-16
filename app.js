@@ -17,7 +17,7 @@ let rabbitMq
     settings = (await getSettings()).CcxwsExchangeConnector
     log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
 
-    log.info(`Main started...`)
+    log.info(`Main thread started...`)
 
     process.on('uncaughtException',  e => log.warn(`Unhandled error: ${e}, ${e.stack}.`))
     process.on('unhandledRejection', e => log.warn(`Unhandled error: ${e}, ${e.stack}.`))
@@ -143,6 +143,7 @@ function getAvailableMarketsForExchange(exchange, symbols) {
 
 function startWebServer() {
     const response = {
+        "Author": "Swisschain",
         "Name": "Lykke.Service.CcxwsExchangeConnector",
         "Version": packageJson.version,
         "Env": null,

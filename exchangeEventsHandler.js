@@ -22,7 +22,8 @@ class ExchangeEventsHandler {
         let isValid = tickPrice.ask > 0 && tickPrice.bid > 0
 
         if (!isValid) {
-            this._log.warn(`Quote is invalid: ${tickPrice}.`)
+            //sometimes ask and bid are null, has to be investigated
+            //this._log.warn(`${tickPrice.source} Quote is invalid: ${JSON.stringify(tickPrice)}.`)
             return;
         }
 
