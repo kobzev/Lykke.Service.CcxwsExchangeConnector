@@ -41,7 +41,7 @@ class RabbitMq {
             channel.publish(rabbitExchange, '', new Buffer(objectJson))
         }
         catch(e) {
-            this._log.warn(`Error while sending a message to rabbit: ${e}, ${e.stack}.`)
+            this._log.warn(`Error while sending a message to RabbitMq: ${e}, ${e.stack}.`)
         }
     }
 

@@ -1,4 +1,3 @@
-const ccxws = require("ccxws");
 const ccxt = require('ccxt');
 const express = require('express')
 const path = require('path');
