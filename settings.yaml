@@ -53,8 +53,8 @@ CcxwsExchangeConnector:
             settings-key: RawPriceRabbitMq
             types:
               - AzureTableStorage
-        TickPrices:
-            settings-key: CryptoIndexService-TickPrices
+        Quotes:
+            settings-key: CryptoIndexService-Quotes
         OrderBooks:
             settings-key: CryptoIndexService-OrderBooks
         Trades:
