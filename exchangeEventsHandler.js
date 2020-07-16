@@ -21,8 +21,10 @@ class ExchangeEventsHandler {
 
         let isValid = tickPrice.ask > 0 && tickPrice.bid > 0
 
-        if (!isValid)
+        if (!isValid) {
+            this._log.warn(`Quote is invalid: ${tickPrice}.`)
             return;
+        }
 
         await this._publishTickPrice(tickPrice)
     }
