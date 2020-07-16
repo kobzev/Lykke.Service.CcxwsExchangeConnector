@@ -41,8 +41,20 @@ async function subscribeToExchangesData() {
 }
 
 async function subscribeToExchangeData(exchangeName, symbols) {
-    const exchange = new ccxt[exchangeName]()
+    let exchange = null
+    try {
+        exchange = new ccxt[exchangeName]()
+    } catch(e){
+        log.warn(`${exchangeName} wasn't found in ccxt: ${e}`)
+        return
+    }
+    
     const exchange_ws = exchangesMapping.MapExchangeCcxtToCcxws(exchangeName)
+    if (!exchange_ws) {
+        log.warn(`${exchangeName} wasn't mapped from ccxt to ccxws.`)
+        return
+    }
+
     exchange_ws.reconnectIntervalMs = settings.Main.ReconnectIntervalMs
 
     let allMarkets = []
@@ -77,6 +89,8 @@ async function subscribeToExchangeData(exchangeName, symbols) {
         exchange_ws.on("l2update", async updateOrderBook => await handler.l2updateEventHandle(updateOrderBook))
         exchange_ws.on("trade", async trade => await handler.tradesEventHandle(trade))
 
+        log.info(`${exchange.id} - found ${availableMarkets.length} markets from config.`)
+
         availableMarkets.forEach(market => {
             try {
                 if (settings.Main.Events.Quotes.Subscribe)
@@ -107,7 +121,8 @@ function getAvailableMarketsForExchange(exchange, symbols) {
     const result = []
 
     for (const symbol of symbols) {
-        let market = exchange.findMarket(assetPairsMapping.TryToMapAssetPairForward(symbol, exchange, settings))
+        const mappedSymbol = assetPairsMapping.TryToMapAssetPairForward(symbol, exchange, settings)
+        let market = exchange.markets[mappedSymbol]
         // Inversed - first trying to map, then try to use original
         // Example:
         // if in the cofig 'symbols' contains BTC/USD and 'mapping' contains USD -> USDT
@@ -116,7 +131,7 @@ function getAvailableMarketsForExchange(exchange, symbols) {
         if (exchangeHasMapped) {
             result.push(market)
         } else {
-            market = exchange.findMarket(symbol)
+            market = exchange.markets[symbol]
             const exchangeHas = typeof market === "object"
             if (exchangeHas) {
                 result.push(market)

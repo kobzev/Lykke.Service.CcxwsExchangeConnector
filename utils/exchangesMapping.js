@@ -2,6 +2,8 @@ const ccxws = require("ccxws");
 
 function MapExchangeCcxtToCcxws(ccxtExchangeName){
     switch(ccxtExchangeName) {
+        case 'bibox':
+            return new ccxws.Bibox()
         case 'binance':
             return new ccxws.Binance()
         case 'bitfinex':
@@ -14,20 +16,34 @@ function MapExchangeCcxtToCcxws(ccxtExchangeName){
             return new ccxws.Bitstamp()
         case 'bittrex':
             return new ccxws.Bittrex()
+        case 'cex':
+            return new ccxws.cex()
         case 'coinex':
             return new ccxws.coinex()
-        case 'gdax':
-            return new ccxws.GDAX()
+        case 'coinbasepro':
+            return new ccxws.coinbasepro()
+        case 'ftx':
+            return new ccxws.ftx()
+        case 'gateio':
+            return new ccxws.Gateio()
         case 'gemini':
             return new ccxws.Gemini()
         case 'hitbtc':
             return new ccxws.HitBTC()
-        case 'huobi':
-            return new ccxws.Huobi()
+        case 'huobipro':
+            return new ccxws.huobipro()
+        case 'kraken':
+            return new ccxws.kraken()
+        case 'kucoin':
+            return new ccxws.kucoin()
+        case 'liquid':
+            return new ccxws.liquid()
         case 'okex':
             return new ccxws.OKEx()
         case 'poloniex':
             return new ccxws.Poloniex()
+        case 'upbit':
+            return new ccxws.Upbit()
         case 'zb':
             return new ccxws.zb()
         default:
