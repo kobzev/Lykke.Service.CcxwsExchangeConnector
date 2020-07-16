@@ -44,9 +44,9 @@ CcxwsExchangeConnector:
 
             Trades:
                 Subscribe:
-                    settings-key: CcxwsExchangeConnector-Events-Trades-Quotes-Subscribe
+                    settings-key: CcxwsExchangeConnector-Events-Trades-Subscribe
                 Publish:
-                    settings-key: CcxwsExchangeConnector-Events-Trades-Quotes-Publish
+                    settings-key: CcxwsExchangeConnector-Events-Trades-Publish
 
     RabbitMq:
         ConnectionString:
