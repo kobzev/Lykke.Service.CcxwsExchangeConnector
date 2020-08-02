@@ -16,6 +16,7 @@ class ExchangeEventsHandler {
         const suffixConfig = this._settings.Main.ExchangesNamesSuffix
         const suffix = suffixConfig ? suffixConfig : ""
         this._source = this._exchange.name.replace(this._exchange.version, "").trim()
+        this._source = this._source + suffix
     }
 
     // event handlers
