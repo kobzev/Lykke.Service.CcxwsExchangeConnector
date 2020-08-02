@@ -29,7 +29,7 @@ function MapExchangeCcxtToCcxws(ccxtExchangeName){
         case 'gemini':
             return new ccxws.Gemini()
         case 'hitbtc':
-            return new ccxws.HitBTC()
+            return new ccxws.hitbtc2()
         case 'huobipro':
             return new ccxws.huobipro()
         case 'kraken':
