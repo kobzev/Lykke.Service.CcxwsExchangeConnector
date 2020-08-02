@@ -103,23 +103,29 @@ class ExchangeEventsHandler {
 
     async _publishQuote(quote) {
         if (this._settings.Main.Events.Quotes.Publish)
+        {
             await this._rabbitMq.send(this._settings.RabbitMq.Quotes, quote)
-    
-        this._log.debug(`Quote: ${quote.source} ${quote.asset}, bid:${quote.bid}, ask:${quote.ask}.`)
+
+            this._log.debug(`Quote: ${quote.source} ${quote.asset}, bid:${quote.bid}, ask:${quote.ask}.`)
+        }
     }
 
     async _publishOrderBook(orderBook) {
         if (this._settings.Main.Events.OrderBooks.Publish)
+        {
             await this._rabbitMq.send(this._settings.RabbitMq.OrderBooks, orderBook)
-    
-        this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}.`)
+
+            this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}.`)
+        }    
     }
 
     async _publishTrade(trade) {
         if (this._settings.Main.Events.Trades.Publish)
+        {
             await this._rabbitMq.send(this._settings.RabbitMq.Trades, trade)
-        
-        this._log.debug(`Trade: ${trade.exchange}, ${trade.base}/${trade.quote}, price: ${trade.price}, amount: ${trade.amount}, side: ${trade.side}.`)
+
+            this._log.debug(`Trade: ${trade.exchange}, ${trade.base}/${trade.quote}, price: ${trade.price}, amount: ${trade.amount}, side: ${trade.side}.`)
+        }   
     }
 
     // mapping
@@ -156,7 +162,7 @@ class ExchangeEventsHandler {
     
         const base = symbol.substring(0, symbol.indexOf('/'))
         const quote = symbol.substring(symbol.indexOf("/") + 1)
-        
+
         const publishingOrderBook = {}
         publishingOrderBook.source = this._source
         publishingOrderBook.asset = symbol.replace("/", "")
