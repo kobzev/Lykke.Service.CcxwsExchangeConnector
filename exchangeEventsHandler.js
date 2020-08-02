@@ -12,22 +12,26 @@ class ExchangeEventsHandler {
         this._orderBooks = new Map()
         this._lastTimePublished = new Map()
         this._log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
+
+        const suffixConfig = this._settings.Main.ExchangesNamesSuffix
+        const suffix = suffixConfig ? suffixConfig : ""
+        this._source = this._exchange.name.replace(this._exchange.version, "").trim()
     }
 
     // event handlers
 
     async tickerEventHandle(ticker) {
-        let tickPrice = this._mapCcxwsTickerToPublishingTickPrice(ticker)
+        let quote = this._mapCcxwsTickerToPublishQuote(ticker)
 
-        let isValid = tickPrice.ask > 0 && tickPrice.bid > 0
+        let isValid = quote.ask > 0 && quote.bid > 0
 
         if (!isValid) {
             //sometimes ask and bid are null, has to be investigated
-            //this._log.warn(`${tickPrice.source} Quote is invalid: ${JSON.stringify(tickPrice)}.`)
+            //this._log.warn(`${quote.source} Quote is invalid: ${JSON.stringify(quote)}.`)
             return;
         }
 
-        await this._publishTickPrice(tickPrice)
+        await this._publishQuote(quote)
     }
 
     async l2snapshotEventHandle(orderBook) {
@@ -39,7 +43,7 @@ class ExchangeEventsHandler {
         // publish
         if (this._isTimeToPublishOrderBook(key))
         {
-            const publishingOrderBook = this._mapInternalOrderBookToPublishingOrderBook(internalOrderBook)
+            const publishingOrderBook = this._mapInternalOrderBookToPublishOrderBook(internalOrderBook)
             await this._publishOrderBook(publishingOrderBook)
 
             this._lastTimePublished.set(key, moment.utc())
@@ -84,7 +88,7 @@ class ExchangeEventsHandler {
 
         if (this._isTimeToPublishOrderBook(key))
         {
-            const publishingOrderBook = this._mapInternalOrderBookToPublishingOrderBook(internalOrderBook)
+            const publishingOrderBook = this._mapInternalOrderBookToPublishOrderBook(internalOrderBook)
             await this._publishOrderBook(publishingOrderBook)
 
             this._lastTimePublished.set(key, moment.utc())
@@ -97,11 +101,11 @@ class ExchangeEventsHandler {
 
     // publishing
 
-    async _publishTickPrice(tickPrice) {
+    async _publishQuote(quote) {
         if (this._settings.Main.Events.Quotes.Publish)
-            await this._rabbitMq.send(this._settings.RabbitMq.Quotes, tickPrice)
+            await this._rabbitMq.send(this._settings.RabbitMq.Quotes, quote)
     
-        this._log.debug(`Quote: ${tickPrice.source} ${tickPrice.asset}, bid:${tickPrice.bid}, ask:${tickPrice.ask}.`)
+        this._log.debug(`Quote: ${quote.source} ${quote.asset}, bid:${quote.bid}, ask:${quote.ask}.`)
     }
 
     async _publishOrderBook(orderBook) {
@@ -147,16 +151,14 @@ class ExchangeEventsHandler {
         return internalOrderBook
     }
     
-    _mapInternalOrderBookToPublishingOrderBook(internalOrderBook) {
+    _mapInternalOrderBookToPublishOrderBook(internalOrderBook) {
         const symbol = mapping.MapAssetPairBackward(internalOrderBook.assetPair, this._settings)
     
         const base = symbol.substring(0, symbol.indexOf('/'))
         const quote = symbol.substring(symbol.indexOf("/") + 1)
-        const suffixConfig = this._settings.Main.ExchangesNamesSuffix
-        const suffix = suffixConfig ? suffixConfig : ""
-        const source = this._exchange.name.replace(this._exchange.version, "").trim()
+        
         const publishingOrderBook = {}
-        publishingOrderBook.source = source + suffix
+        publishingOrderBook.source = this._source
         publishingOrderBook.asset = symbol.replace("/", "")
         publishingOrderBook.assetPair = { 'base': base, 'quote': quote }
         publishingOrderBook.timestamp = internalOrderBook.timestamp.toISOString()
@@ -198,16 +200,16 @@ class ExchangeEventsHandler {
         return publishingOrderBook
     }
 
-    _mapCcxwsTickerToPublishingTickPrice(ticker) {
-        const tickPrice = {}
-        tickPrice.source = ticker.exchange
-        tickPrice.assetPair = { 'base': ticker.base, 'quote': ticker.quote }
-        tickPrice.asset = ticker.base + ticker.quote
-        tickPrice.timestamp = moment(ticker.timestamp / 1000).toISOString()
-        tickPrice.bid = parseFloat(ticker.bid)
-        tickPrice.ask = parseFloat(ticker.ask)
+    _mapCcxwsTickerToPublishQuote(ticker) {
+        const quote = {}
+        quote.source = this._source
+        quote.assetPair = { 'base': ticker.base, 'quote': ticker.quote }
+        quote.asset = ticker.base + ticker.quote
+        quote.timestamp = moment(ticker.timestamp / 1000).toISOString()
+        quote.bid = parseFloat(ticker.bid)
+        quote.ask = parseFloat(ticker.ask)
     
-        return tickPrice
+        return quote
     }
     
     // utils
