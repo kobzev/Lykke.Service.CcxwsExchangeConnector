@@ -52,6 +52,8 @@ class ExchangeEventsHandler {
     }
 
     async l2updateEventHandle(updateOrderBook) {
+        const start = process.hrtime();
+
         const key = updateOrderBook.marketId
 
         // update cache
@@ -59,7 +61,7 @@ class ExchangeEventsHandler {
         const internalOrderBook = this._orderBooks.get(key)
 
         if (!internalOrderBook) {
-            this._log.warn(`Internal order book ${this._exchange.name} ${key} is not found during update.`)
+            this._log.warn(`Order book ${this._exchange.name} ${key} was not found in the cache during the'order book update' event.`)
             return
         }
 
@@ -94,6 +96,8 @@ class ExchangeEventsHandler {
 
             this._lastTimePublished.set(key, moment.utc())
         }
+
+        const finish = process.hrtime();
     }
 
     async tradesEventHandle(trade) {
