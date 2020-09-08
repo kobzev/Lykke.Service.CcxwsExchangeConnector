@@ -61,7 +61,7 @@ class ExchangeEventsHandler {
         const internalOrderBook = this._orderBooks.get(key)
 
         if (!internalOrderBook) {
-            this._log.warn(`Order book ${this._exchange.name} ${key} was not found in the cache during the'order book update' event.`)
+            this._log.warn(`Order book ${this._exchange.name} ${key} was not found in the cache during the 'order book update' event.`)
             return
         }
 

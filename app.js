@@ -1,12 +1,11 @@
 const ccxt = require('ccxt');
-const express = require('express')
 const path = require('path');
 const LogFactory =  require('./utils/logFactory')
 const RabbitMq = require('./rabbitMq/rabbitMq')
 const getSettings = require('./settings/settings')
+const startWebServer = require('./webserver/webserver')
 const assetPairsMapping = require('./utils/assetPairsMapping')
 const exchangesMapping = require('./utils/exchangesMapping')
-const packageJson = require('./package.json')
 const exchangeEventsHandler = require('./exchangeEventsHandler')
 
 let settings
@@ -27,7 +26,7 @@ let rabbitMq
 
     subscribeToExchangesData()
 
-    startWebServer()
+    await startWebServer(settings.Main.LoggingLevel)
 })();
 
 async function subscribeToExchangesData() {
@@ -139,36 +138,4 @@ function getAvailableMarketsForExchange(exchange, symbols) {
     }
 
     return result
-}
-
-function startWebServer() {
-    const response = {
-        "Author": "Swisschain",
-        "Name": "Lykke.Service.CcxwsExchangeConnector",
-        "Version": packageJson.version,
-        "Env": null,
-        "IsDebug": false,
-        "IssueIndicators": []
-      }
-      
-    const app = express()
-
-    app.get('/api/isAlive', function (req, res) {
-        res.header("Content-Type",'application/json')
-        res.send(JSON.stringify(response, null, 4))
-    })
-    
-    app.get('/api/settings', async function (req, res) {
-        res.header("Content-Type",'application/json')
-        res.send(JSON.stringify(settings, null, 4))
-    })
-
-    const server = app.listen(5000, function () {
-       let host = server.address().address
-       const port = server.address().port
-
-       if (host === "::") { 
-           host = "localhost" }
-        log.info(`Listening at http://${host}:${port}`)
-    })
 }
