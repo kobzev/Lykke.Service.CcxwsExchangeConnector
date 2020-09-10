@@ -2,6 +2,7 @@ const moment = require('moment');
 const path = require('path');
 const LogFactory =  require('./utils/logFactory')
 const mapping = require('./utils/assetPairsMapping')
+const getSocketIO = require('./socketio/socketio')
 
 class ExchangeEventsHandler {
     
@@ -9,6 +10,7 @@ class ExchangeEventsHandler {
         this._exchange = exchange
         this._settings = settings
         this._rabbitMq = rabbitMq
+        this._socketio = getSocketIO(settings)
         this._orderBooks = new Map()
         this._lastTimePublished = new Map()
         this._log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
@@ -52,8 +54,6 @@ class ExchangeEventsHandler {
     }
 
     async l2updateEventHandle(updateOrderBook) {
-        const start = process.hrtime();
-
         const key = updateOrderBook.marketId
 
         // update cache
@@ -86,6 +86,7 @@ class ExchangeEventsHandler {
         });
 
         internalOrderBook.timestamp = moment.utc()
+        internalOrderBook.timestampMs = updateOrderBook.timestampMs // optional, not available on most exchanges
 
         // publish
 
@@ -96,8 +97,6 @@ class ExchangeEventsHandler {
 
             this._lastTimePublished.set(key, moment.utc())
         }
-
-        const finish = process.hrtime();
     }
 
     async tradesEventHandle(trade) {
@@ -111,7 +110,7 @@ class ExchangeEventsHandler {
         {
             await this._rabbitMq.send(this._settings.RabbitMq.Quotes, quote)
 
-            this._log.debug(`Quote: ${quote.source} ${quote.asset}, bid:${quote.bid}, ask:${quote.ask}.`)
+            this._log.debug(`Quote: ${quote.source} ${quote.asset}, bid:${quote.bid}, ask:${quote.ask}, timestamp:${quote.timestamp}.`)
         }
     }
 
@@ -119,6 +118,9 @@ class ExchangeEventsHandler {
         if (this._settings.Main.Events.OrderBooks.Publish)
         {
             await this._rabbitMq.send(this._settings.RabbitMq.OrderBooks, orderBook)
+
+            if (!this._settings.SocketIO.Disabled && this._socketio != null)
+                this._socketio.sockets.send(orderBook);
 
             this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}.`)
         }    
@@ -130,11 +132,24 @@ class ExchangeEventsHandler {
             await this._rabbitMq.send(this._settings.RabbitMq.Trades, trade)
 
             this._log.debug(`Trade: ${trade.exchange}, ${trade.base}/${trade.quote}, price: ${trade.price}, amount: ${trade.amount}, side: ${trade.side}.`)
-        }   
+        }
     }
 
     // mapping
 
+    _mapCcxwsTickerToPublishQuote(ticker) {
+        const quote = {}
+        quote.source = this._source
+        quote.assetPair = { 'base': ticker.base, 'quote': ticker.quote }
+        quote.asset = ticker.base + ticker.quote
+        quote.timestamp = moment(ticker.timestamp).toISOString()
+        quote.timestampMs = ticker.timestamp
+        quote.bid = parseFloat(ticker.bid)
+        quote.ask = parseFloat(ticker.ask)
+    
+        return quote
+    }
+    
     _mapCcxwsOrderBookToInternalOrderBook(ccxwsOrderBook) {
         const asks = new Map();
         ccxwsOrderBook.asks.forEach(ask => {
@@ -157,7 +172,9 @@ class ExchangeEventsHandler {
         internalOrderBook.assetPair = ccxwsOrderBook.marketId
         internalOrderBook.asks = asks
         internalOrderBook.bids = bids
-        internalOrderBook.timestamp = moment.utc()  // some exchanges may not have a timestamp (like Poloniex)
+
+        internalOrderBook.timestamp = moment.utc()
+        internalOrderBook.timestampMs = ccxwsOrderBook.timestampMs // optional, not available on most exchanges
         
         return internalOrderBook
     }
@@ -173,6 +190,7 @@ class ExchangeEventsHandler {
         publishingOrderBook.asset = symbol.replace("/", "")
         publishingOrderBook.assetPair = { 'base': base, 'quote': quote }
         publishingOrderBook.timestamp = internalOrderBook.timestamp.toISOString()
+        publishingOrderBook.timestampMs = internalOrderBook.timestampMs // optional, not available on most exchanges
     
         const descOrderedBidsPrices = Array.from(internalOrderBook.bids.keys())
                                            .sort(function(a, b) { return b-a; })
@@ -209,18 +227,6 @@ class ExchangeEventsHandler {
         publishingOrderBook.asks = asks
     
         return publishingOrderBook
-    }
-
-    _mapCcxwsTickerToPublishQuote(ticker) {
-        const quote = {}
-        quote.source = this._source
-        quote.assetPair = { 'base': ticker.base, 'quote': ticker.quote }
-        quote.asset = ticker.base + ticker.quote
-        quote.timestamp = moment(ticker.timestamp / 1000).toISOString()
-        quote.bid = parseFloat(ticker.bid)
-        quote.ask = parseFloat(ticker.ask)
-    
-        return quote
     }
     
     // utils
