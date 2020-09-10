@@ -19,7 +19,7 @@ function getSocketIO(settings) {
     socketio = socketioServer.listen(port)
 
   hostPort = socketio.httpServer._connectionKey
-                            .replace('6:::', 'localhost')
+  hostPort = hostPort.replace('6:::', 'localhost')
 
   _log.info(`Listening Socket.IO at http://${hostPort}`)
 
