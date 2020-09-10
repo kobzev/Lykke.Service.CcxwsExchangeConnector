@@ -110,7 +110,7 @@ async function subscribeToExchangeData(exchangeName, symbols) {
             }
         });
     } catch (e) {
-        log.warn(`${exchange.id} can't load markets: ${e}`)
+        log.warn(`Exception occured during loading markets for '${exchange.id}': ${e}`)
         return
     }
 }
