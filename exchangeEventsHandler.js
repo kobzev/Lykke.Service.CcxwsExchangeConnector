@@ -85,8 +85,11 @@ class ExchangeEventsHandler {
                 internalOrderBook.bids.set(updateBidPrice, updateBidSize)
         });
 
-        internalOrderBook.timestamp = moment.utc()
         internalOrderBook.timestampMs = updateOrderBook.timestampMs // optional, not available on most exchanges
+        if (internalOrderBook.timestampMs)
+            internalOrderBook.timestamp = moment(internalOrderBook.timestampMs)
+        else
+            internalOrderBook.timestamp = moment.utc()
 
         // publish
 
@@ -122,7 +125,7 @@ class ExchangeEventsHandler {
             if (!this._settings.SocketIO.Disabled && this._socketio != null)
                 this._socketio.sockets.send(orderBook);
 
-            this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}.`)
+            this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
         }    
     }
 
@@ -173,9 +176,12 @@ class ExchangeEventsHandler {
         internalOrderBook.asks = asks
         internalOrderBook.bids = bids
 
-        internalOrderBook.timestamp = moment.utc()
         internalOrderBook.timestampMs = ccxwsOrderBook.timestampMs // optional, not available on most exchanges
-        
+        if (internalOrderBook.timestampMs)
+            internalOrderBook.timestamp = moment(internalOrderBook.timestampMs)
+        else
+            internalOrderBook.timestamp = moment.utc()
+
         return internalOrderBook
     }
     
