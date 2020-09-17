@@ -49,16 +49,22 @@ CcxwsExchangeConnector:
                     settings-key: CcxwsExchangeConnector-Events-Trades-Publish
 
     RabbitMq:
+        Disabled:
+            settings-key: CcxwsExchangeConnector-RabbitMq-Disabled
         ConnectionString:
             settings-key: RawPriceRabbitMq
             types:
               - AzureTableStorage
         Quotes:
-            settings-key: CryptoIndexService-Quotes
+            settings-key: CcxwsExchangeConnector-RabbitMq-Quotes
         OrderBooks:
-            settings-key: CryptoIndexService-OrderBooks
+            settings-key: CcxwsExchangeConnector-RabbitMq-OrderBooks
         Trades:
-            settings-key: CryptoIndexService-Trades
+            settings-key: CcxwsExchangeConnector-RabbitMq-Trades
+
+        SocketIO:
+            Disabled:
+                settings-key: CcxwsExchangeConnector-SocketIO-Disabled
 
 SlackNotifications:
     AzureQueue:
