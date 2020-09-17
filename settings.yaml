@@ -62,9 +62,11 @@ CcxwsExchangeConnector:
         Trades:
             settings-key: CcxwsExchangeConnector-RabbitMq-Trades
 
-        SocketIO:
-            Disabled:
-                settings-key: CcxwsExchangeConnector-SocketIO-Disabled
+    SocketIO:
+        Disabled:
+            settings-key: CcxwsExchangeConnector-SocketIO-Disabled
+        Port:
+            settings-key: CcxwsExchangeConnector-SocketIO-Port
 
 SlackNotifications:
     AzureQueue:
