@@ -123,7 +123,7 @@ class ExchangeEventsHandler {
             await this._rabbitMq.send(this._settings.RabbitMq.OrderBooks, orderBook)
 
             if (!this._settings.SocketIO.Disabled && this._socketio != null)
-                this._socketio.sockets.send(orderBook);
+                this._socketio.sockets.send(JSON.stringify(orderBook));
 
             this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
         }    
