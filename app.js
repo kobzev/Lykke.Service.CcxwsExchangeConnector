@@ -13,7 +13,7 @@ let log
 let rabbitMq
 
 (async function main() {    
-    settings = (await getSettings()).CcxwsExchangeConnector
+    settings = (await getSettings()).CcxwsExchangeConnectorSwisschain
     log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
 
     log.info(`Main thread started...`)

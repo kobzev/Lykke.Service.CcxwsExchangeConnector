@@ -10,7 +10,7 @@ async function startWebServer(loggingLevel) {
     
     const response = {
         "Author": "Swisschain",
-        "Name": "Lykke.Service.CcxwsExchangeConnector",
+        "Name": "Lykke.Service.CcxwsExchangeConnectorSwisschain",
         "Version": packageJson.version,
         "Env": null,
         "IsDebug": false,
