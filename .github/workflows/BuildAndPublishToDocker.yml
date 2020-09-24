@@ -15,9 +15,9 @@ jobs:
         node-version: 10.x
     - run: npm install
     - name: Publish to Registry
-      uses: swisschains/Publish-Docker-Github-Action@master
+      uses: swisschain/Publish-Docker-Github-Action@master
       with:
-        name: swisschain/ccxws-exchange-adapter
+        name: swisschains/ccxws-exchange-adapter
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
         workdir: ./
