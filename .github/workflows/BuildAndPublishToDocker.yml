@@ -1,6 +1,9 @@
 name: Build and Publish to Docker
 
-on: [push] 
+on:
+  push:
+      branches:
+        - *
 
 jobs:
   build:
