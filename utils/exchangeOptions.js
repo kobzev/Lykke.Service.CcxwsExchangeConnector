@@ -2,6 +2,10 @@ function GetExchangeOptions(exchangeName, settings) {
 
     let exchangeCredentials
 
+    if (!settings.Main.Credentials) {
+        return {}
+    }
+
     settings.Main.Credentials.forEach(cred => {
         if (cred.Exchange == exchangeName){
             exchangeCredentials = cred
