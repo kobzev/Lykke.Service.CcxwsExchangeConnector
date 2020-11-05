@@ -6,13 +6,14 @@ const getSettings = require('./settings/settings')
 const startWebServer = require('./webserver/webserver')
 const assetPairsMapping = require('./utils/assetPairsMapping')
 const exchangesMapping = require('./utils/exchangesMapping')
+const exchangeOptions = require('./utils/exchangeOptions')
 const exchangeEventsHandler = require('./exchangeEventsHandler')
 
 let settings
 let log
 let rabbitMq
 
-(async function main() {    
+(async function main() {
     settings = (await getSettings()).CcxwsExchangeConnectorSwisschain
     log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
 
@@ -34,20 +35,24 @@ async function subscribeToExchangesData() {
     const symbols = settings.Main.Symbols
 
     await Promise.all(exchanges.map (exchangeName =>
-        subscribeToExchangeData(exchangeName, symbols)
+        subscribeToExchangeData(exchangeName, symbols, settings)
     ))
 }
 
-async function subscribeToExchangeData(exchangeName, symbols) {
+async function subscribeToExchangeData(exchangeName, symbols, settings) {
+    
     let exchange = null
+    
     try {
         exchange = new ccxt[exchangeName]()
     } catch(e){
         log.warn(`${exchangeName} wasn't found in ccxt: ${e}`)
         return
     }
-    
-    const exchange_ws = exchangesMapping.MapExchangeCcxtToCcxws(exchangeName)
+
+    const options = exchangeOptions.GetExchangeOptions(exchangeName, settings)
+
+    const exchange_ws = exchangesMapping.MapExchangeCcxtToCcxws(exchangeName, options)
     if (!exchange_ws) {
         log.warn(`${exchangeName} wasn't mapped from ccxt to ccxws.`)
         return
