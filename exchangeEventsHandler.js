@@ -40,7 +40,13 @@ class ExchangeEventsHandler {
     }
 
     async l2snapshotEventHandle(orderBook) {
-        Metrics.received_order_book_snapshot_counter.inc(1)
+        Metrics.tick_order_book_in_count.labels(orderBook.exchange, `${orderBook.base}/${orderBook.quote}`).inc()
+        if (orderBook.timestampMs){
+            const timestampMs = Math.round(orderBook.timestampMs / 1000)
+            const nowMs = moment.utc().unix()
+            const delay = nowMs - timestampMs
+            Metrics.tick_order_book_in_delay_ms.labels(orderBook.exchange, `${orderBook.base}/${orderBook.quote}`).set(delay)
+        }
 
         // update cache
         const internalOrderBook = this._mapCcxwsOrderBookToInternalOrderBook(orderBook)
@@ -58,7 +64,14 @@ class ExchangeEventsHandler {
     }
 
     async l2updateEventHandle(updateOrderBook) {
-        Metrics.received_order_book_update_counter.inc(1)
+        Metrics.tick_order_book_in_count.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).inc()
+        
+        if (updateOrderBook.timestampMs){
+            const timestampMs = Math.round(updateOrderBook.timestampMs / 1000)
+            const nowMs = moment.utc().unix()
+            const delay = nowMs - timestampMs
+            Metrics.tick_order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delay)
+        }
 
         const key = updateOrderBook.marketId
 

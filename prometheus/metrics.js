@@ -2,14 +2,22 @@ const prometheus = require('prom-client');
 
 class Metrics {
 
-    static received_order_book_update_counter = new prometheus.Counter({
-      name: 'received_order_book_update_count',
-      help: 'Counter of received order book updates.'
+    static tick_order_book_in_count = new prometheus.Counter({
+      name: 'tick_order_book_count',
+      help: 'Counter of received order book updates.',
+      labelNames: ['exchange', 'symbol']
     });
 
-    static received_order_book_snapshot_counter = new prometheus.Counter({
-      name: 'received_order_book_snapshot_count',
-      help: 'Counter of received order book snapshots.'
+    static tick_order_book_in_delay_ms = new prometheus.Gauge({
+      name: 'tick_order_book_in_delay_ms',
+      help: 'Gauge of received order book updates.',
+      labelNames: ['exchange', 'symbol']
+    });
+
+    static tick_order_book_price = new prometheus.Gauge({
+      name: 'tick_order_book_price',
+      help: 'Gauge of received order book price.',
+      labelNames: ['exchange', 'symbol']
     });
 
 }
