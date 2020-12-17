@@ -8,6 +8,9 @@ const assetPairsMapping = require('./utils/assetPairsMapping')
 const exchangesMapping = require('./utils/exchangesMapping')
 const exchangeOptions = require('./utils/exchangeOptions')
 const exchangeEventsHandler = require('./exchangeEventsHandler')
+const prometheus = require('prom-client')
+const collectDefaultMetrics = prometheus.collectDefaultMetrics
+collectDefaultMetrics()
 
 let settings
 let log

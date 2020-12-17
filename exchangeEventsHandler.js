@@ -3,6 +3,8 @@ const path = require('path');
 const LogFactory =  require('./utils/logFactory')
 const mapping = require('./utils/assetPairsMapping')
 const getSocketIO = require('./socketio/socketio')
+const prometheus = require('prom-client');
+const Metrics = require('./prometheus/metrics')
 
 class ExchangeEventsHandler {
     
@@ -38,6 +40,8 @@ class ExchangeEventsHandler {
     }
 
     async l2snapshotEventHandle(orderBook) {
+        Metrics.received_order_book_snapshot_counter.inc(1)
+
         // update cache
         const internalOrderBook = this._mapCcxwsOrderBookToInternalOrderBook(orderBook)
         const key = orderBook.marketId
@@ -54,6 +58,8 @@ class ExchangeEventsHandler {
     }
 
     async l2updateEventHandle(updateOrderBook) {
+        Metrics.received_order_book_update_counter.inc(1)
+
         const key = updateOrderBook.marketId
 
         // update cache

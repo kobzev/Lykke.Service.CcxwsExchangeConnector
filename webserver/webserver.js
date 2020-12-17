@@ -2,6 +2,7 @@ const express = require('express')
 const path = require('path');
 const packageJson = require('../package.json')
 const LogFactory =  require('../utils/logFactory')
+const prometheus = require('prom-client')
 
 let _log
 
@@ -22,6 +23,11 @@ async function startWebServer(loggingLevel) {
     app.get('/api/isAlive', function (req, res) {
         res.header("Content-Type",'application/json')
         res.send(JSON.stringify(response, null, 4))
+    })
+
+    app.get('/metrics', async function(req, res) {
+        const metrics = await prometheus.register.metrics()
+        res.send(metrics)
     })
 
     const server = app.listen(5000, function () {
