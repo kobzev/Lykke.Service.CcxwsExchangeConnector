@@ -26,8 +26,13 @@ async function startWebServer(loggingLevel) {
     })
 
     app.get('/metrics', async function(req, res) {
-        const metrics = await prometheus.register.metrics()
-        res.send(metrics)
+        try {
+            const register = prometheus.register
+            res.set('Content-Type', register.contentType);
+            res.end(await register.metrics());
+        } catch (ex) {
+            res.status(500).end(ex);
+        }
     })
 
     const server = app.listen(5000, function () {
