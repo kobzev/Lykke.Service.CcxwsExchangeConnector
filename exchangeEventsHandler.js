@@ -40,11 +40,11 @@ class ExchangeEventsHandler {
     }
 
     async l2snapshotEventHandle(orderBook) {
+        // metrics
         Metrics.tick_order_book_in_count.labels(orderBook.exchange, `${orderBook.base}/${orderBook.quote}`).inc()
         if (orderBook.timestampMs){
             const timestampMs = Math.round(orderBook.timestampMs / 1000)
-            const nowMs = moment.utc().unix()
-            const delay = nowMs - timestampMs
+            const delay = moment.utc().unix() - timestampMs
             Metrics.tick_order_book_in_delay_ms.labels(orderBook.exchange, `${orderBook.base}/${orderBook.quote}`).set(delay)
         }
 
@@ -52,6 +52,11 @@ class ExchangeEventsHandler {
         const internalOrderBook = this._mapCcxwsOrderBookToInternalOrderBook(orderBook)
         const key = orderBook.marketId
         this._orderBooks.set(key, internalOrderBook)
+
+        // metrics
+        const ob = internalOrderBook
+        Metrics.tick_order_book_bid.labels(ob.exchange, `${ob.base}/${ob.quote}`).set(ob.bids.keys().next().value)
+        Metrics.tick_order_book_ask.labels(ob.exchange, `${ob.base}/${ob.quote}`).set(ob.asks.keys().next().value)
 
         // publish
         if (this._isTimeToPublishOrderBook(key))
@@ -65,11 +70,9 @@ class ExchangeEventsHandler {
 
     async l2updateEventHandle(updateOrderBook) {
         Metrics.tick_order_book_in_count.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).inc()
-        
         if (updateOrderBook.timestampMs){
             const timestampMs = Math.round(updateOrderBook.timestampMs / 1000)
-            const nowMs = moment.utc().unix()
-            const delay = nowMs - timestampMs
+            const delay = moment.utc().unix() - timestampMs
             Metrics.tick_order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delay)
         }
 
@@ -109,6 +112,11 @@ class ExchangeEventsHandler {
             internalOrderBook.timestamp = moment(internalOrderBook.timestampMs)
         else
             internalOrderBook.timestamp = moment.utc()
+
+        // metrics
+        const ob = internalOrderBook
+        Metrics.tick_order_book_bid.labels(ob.exchange, `${ob.base}/${ob.quote}`).set(ob.bids.keys().next().value)
+        Metrics.tick_order_book_ask.labels(ob.exchange, `${ob.base}/${ob.quote}`).set(ob.asks.keys().next().value)
 
         // publish
 
