@@ -55,8 +55,8 @@ class ExchangeEventsHandler {
 
         // metrics
         const ob = internalOrderBook
-        Metrics.tick_order_book_bid.labels(ob.exchange, `${ob.base}/${ob.quote}`).set(ob.bids.keys().next().value)
-        Metrics.tick_order_book_ask.labels(ob.exchange, `${ob.base}/${ob.quote}`).set(ob.asks.keys().next().value)
+        Metrics.quote_out_side_price.labels(ob.exchange, `${ob.base}/${ob.quote}`, 'bid').set(ob.bids.keys().next().value)
+        Metrics.quote_out_side_price.labels(ob.exchange, `${ob.base}/${ob.quote}`, 'ask').set(ob.asks.keys().next().value)
 
         // publish
         if (this._isTimeToPublishOrderBook(key))
@@ -115,8 +115,8 @@ class ExchangeEventsHandler {
 
         // metrics
         const ob = internalOrderBook
-        Metrics.tick_order_book_bid.labels(ob.exchange, `${ob.base}/${ob.quote}`).set(ob.bids.keys().next().value)
-        Metrics.tick_order_book_ask.labels(ob.exchange, `${ob.base}/${ob.quote}`).set(ob.asks.keys().next().value)
+        Metrics.quote_out_side_price.labels(ob.exchange, `${ob.base}/${ob.quote}`, 'bid').set(ob.bids.keys().next().value)
+        Metrics.quote_out_side_price.labels(ob.exchange, `${ob.base}/${ob.quote}`, 'ask').set(ob.asks.keys().next().value)
 
         // publish
 

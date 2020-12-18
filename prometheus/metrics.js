@@ -14,16 +14,10 @@ class Metrics {
       labelNames: ['exchange', 'symbol']
     });
 
-    static tick_order_book_bid = new prometheus.Gauge({
-      name: 'tick_order_book_bid',
-      help: 'Gauge of received order book bid.',
-      labelNames: ['exchange', 'symbol']
-    });
-
-    static tick_order_book_ask = new prometheus.Gauge({
-      name: 'tick_order_book_ask',
-      help: 'Gauge of received order book ask.',
-      labelNames: ['exchange', 'symbol']
+    static quote_out_side_price = new prometheus.Gauge({
+      name: 'quote_out_side_price',
+      help: 'Gauge of received order book side price.',
+      labelNames: ['exchange', 'symbol', 'side']
     });
 
 }
