@@ -43,8 +43,7 @@ class ExchangeEventsHandler {
         // metrics
         Metrics.tick_order_book_in_count.labels(orderBook.exchange, `${orderBook.base}/${orderBook.quote}`).inc()
         if (orderBook.timestampMs){
-            const timestampMs = Math.round(orderBook.timestampMs / 1000)
-            const delay = moment.utc().unix() - timestampMs
+            const delay = Math.round(moment.utc().unix() - orderBook.timestampMs / 1000)
             Metrics.tick_order_book_in_delay_ms.labels(orderBook.exchange, `${orderBook.base}/${orderBook.quote}`).set(delay)
         }
 
@@ -55,8 +54,8 @@ class ExchangeEventsHandler {
 
         // metrics
         const ob = internalOrderBook
-        Metrics.quote_out_side_price.labels(ob.exchange, `${ob.base}/${ob.quote}`, 'bid').set(ob.bids.keys().next().value)
-        Metrics.quote_out_side_price.labels(ob.exchange, `${ob.base}/${ob.quote}`, 'ask').set(ob.asks.keys().next().value)
+        Metrics.quote_out_side_price.labels(ob.source, `${ob.assetPair}`, 'bid').set(ob.bids.keys().next().value)
+        Metrics.quote_out_side_price.labels(ob.source, `${ob.assetPair}`, 'ask').set(ob.asks.keys().next().value)
 
         // publish
         if (this._isTimeToPublishOrderBook(key))
@@ -71,8 +70,7 @@ class ExchangeEventsHandler {
     async l2updateEventHandle(updateOrderBook) {
         Metrics.tick_order_book_in_count.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).inc()
         if (updateOrderBook.timestampMs){
-            const timestampMs = Math.round(updateOrderBook.timestampMs / 1000)
-            const delay = moment.utc().unix() - timestampMs
+            const delay = Math.round(moment.utc().unix() - updateOrderBook.timestampMs / 1000)
             Metrics.tick_order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delay)
         }
 
@@ -115,8 +113,8 @@ class ExchangeEventsHandler {
 
         // metrics
         const ob = internalOrderBook
-        Metrics.quote_out_side_price.labels(ob.exchange, `${ob.base}/${ob.quote}`, 'bid').set(ob.bids.keys().next().value)
-        Metrics.quote_out_side_price.labels(ob.exchange, `${ob.base}/${ob.quote}`, 'ask').set(ob.asks.keys().next().value)
+        Metrics.quote_out_side_price.labels(ob.source, `${ob.assetPair}`, 'bid').set(ob.bids.keys().next().value)
+        Metrics.quote_out_side_price.labels(ob.source, `${ob.assetPair}`, 'ask').set(ob.asks.keys().next().value)
 
         // publish
 
