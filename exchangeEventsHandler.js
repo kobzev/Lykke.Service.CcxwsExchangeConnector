@@ -237,6 +237,9 @@ class ExchangeEventsHandler {
             size = this._toFixedNumber(size)
     
             bids.push({ 'price': price, 'volume': size })
+
+            if (bids.length >= 100)
+                break;
         }
         publishingOrderBook.bids = bids
     
@@ -254,6 +257,9 @@ class ExchangeEventsHandler {
             size = this._toFixedNumber(size)
     
             asks.push({ 'price': price, 'volume': size })
+
+            if (asks.length >= 100)
+                break;
         }
         publishingOrderBook.asks = asks
     
