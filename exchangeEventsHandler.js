@@ -239,8 +239,8 @@ class ExchangeEventsHandler {
             bids.push({ 'price': price, 'volume': size })
 
             // TODO: only best bid, remove to have full OrderBooks
-            if (bids.length >= 1)
-                break;
+            //if (bids.length >= 1)
+            //    break;
         }
         publishingOrderBook.bids = bids
     
@@ -260,8 +260,8 @@ class ExchangeEventsHandler {
             asks.push({ 'price': price, 'volume': size })
 
             // TODO: only best ask, remove to have full OrderBooks
-            if (asks.length >= 1)
-                break;
+            //if (asks.length >= 1)
+            //    break;
         }
         publishingOrderBook.asks = asks
     
