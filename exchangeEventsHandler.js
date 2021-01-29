@@ -4,8 +4,11 @@ const LogFactory =  require('./utils/logFactory')
 const mapping = require('./utils/assetPairsMapping')
 const getSocketIO = require('./socketio/socketio')
 const getZeroMq = require('./zeromq/zeromq')
+const getGrpc = require('./gRPC/dynamic_codegen.js')
 const prometheus = require('prom-client');
 const Metrics = require('./prometheus/metrics')
+var protoLoader = require('@grpc/proto-loader');
+var grpc = require('@grpc/grpc-js');
 
 class ExchangeEventsHandler {
     constructor(exchange, settings, rabbitMq) {
@@ -16,6 +19,8 @@ class ExchangeEventsHandler {
         this._rabbitMq = rabbitMq
         this._socketio = getSocketIO(settings)
         this._zeroMq = getZeroMq(settings)
+  
+
         this._orderBooks = new Map()
         this._lastTimePublished = new Map()
         this._log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
@@ -24,6 +29,25 @@ class ExchangeEventsHandler {
         const suffix = suffixConfig ? suffixConfig : ""
         this._source = this._exchange.name.replace(this._exchange.version, "").trim()
         this._source = this._source + suffix
+
+        var packageDefinition = protoLoader.loadSync(
+            __dirname + '/gRPC/orderbooks.proto',
+            {keepCase: true,
+            longs: String,
+            enums: String,
+            defaults: true,
+            oneofs: true
+            });
+        this._protoPackage = grpc.loadPackageDefinition(packageDefinition).common;
+        this._server = new grpc.Server();
+        this._server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () => {
+            this._server.start();
+        });
+
+        this._server.addService(this._protoPackage.OrderBooks.service, {GetOrderBooks: function (call) {
+            this._call = call;
+        }});
+
     }
 
     // event handlers
@@ -78,12 +102,45 @@ class ExchangeEventsHandler {
             Metrics.order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delayMs)
             Metrics.order_book_in_delay.observe(delayMs)
         }
-
         const key = updateOrderBook.marketId
 
-        // update cache
+        const internalOrderBook = this._orderBooks.get(key)
+
+        this._updateCache(internalOrderBook, updateOrderBook);
+
+        // publish
+        if (this._isTimeToPublishOrderBook(key))
+        {
+            const publishingOrderBook = this._mapInternalOrderBookToPublishOrderBook(internalOrderBook)
+            await this._publishOrderBook(publishingOrderBook)
+            this._lastTimePublished.set(key, moment.utc())
+        }
+    }
+
+    async l2updateEventHandleProtobuf(updateOrderBook, call) {
+        const key = updateOrderBook.marketId
 
         const internalOrderBook = this._orderBooks.get(key)
+
+        this._updateCache(internalOrderBook, updateOrderBook);
+
+        // publish
+        if (this._isTimeToPublishOrderBook(key))
+        {
+            const publishingOrderBook = this._mapInternalOrderBookToProtobufOrderBook(internalOrderBook)
+
+            call.write({ order_books: [publishingOrderBook] })
+            
+            this._lastTimePublished.set(key, moment.utc())
+        }
+    }
+
+    _updateCache(internalOrderBook, updateOrderBook){
+        Metrics.order_book_in_count.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).inc()
+        if (updateOrderBook.timestampMs){
+            const delayMs = moment.utc().unix() - moment(updateOrderBook.timestampMs).unix()
+            Metrics.order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delayMs)
+        }
 
         if (!internalOrderBook) {
             this._log.warn(`Order book ${this._exchange.name} ${key} was not found in the cache during the 'order book update' event.`)
@@ -161,6 +218,12 @@ class ExchangeEventsHandler {
                 this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
             }
 
+            // if (!this._settings.gRPC.Disabled && this._call != null) {
+            //     this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
+            //     this._call.write({ order_books: [orderBook] })
+            //     this._call.end();
+            // }
+
             Metrics.order_book_out_count.labels(orderBook.source, `${orderBook.base}/${orderBook.quote}`).inc()
 
             const delayMs = moment.utc().valueOf() - orderBook.timestampMs
@@ -230,6 +293,74 @@ class ExchangeEventsHandler {
         return internalOrderBook
     }
     
+    _mapInternalOrderBookToProtobufOrderBook(internalOrderBook) {
+        const symbol = mapping.MapAssetPairBackward(internalOrderBook.assetPair, this._settings)
+    
+        const base = symbol.substring(0, symbol.indexOf('/'))
+        const quote = symbol.substring(symbol.indexOf("/") + 1)
+
+        
+        const orderbookTimestamp = {};
+        orderbookTimestamp.seconds = internalOrderBook.timestamp / 1000;
+        orderbookTimestamp.nanos = (internalOrderBook.timestamp % 1000) * 1e6;
+
+        const timestamp = {};
+        const now = moment.utc()
+        timestamp.seconds = now / 1000;
+        timestamp.nanos = (now % 1000) * 1e6;
+
+        const publishingOrderBook = {}
+        publishingOrderBook.source = this._source
+        publishingOrderBook.assetPair = { 'base': base, 'quote': quote }
+        publishingOrderBook.timestamp =  orderbookTimestamp
+        publishingOrderBook.timestamp_in = timestamp
+        publishingOrderBook.timestamp_out = orderbookTimestamp
+    
+        const descOrderedBidsPrices = Array.from(internalOrderBook.bids.keys())
+                                           .sort(function(a, b) { return b-a; })
+        const bids = []
+        for(let price of descOrderedBidsPrices) {
+            if (price == 0)
+                continue
+            let size = internalOrderBook.bids.get(price)
+            if (size == 0)
+                continue
+    
+            price = this._toFixedNumber(price)
+            size = this._toFixedNumber(size)
+    
+            bids.push({ 'price': price, 'volume': size })
+
+            // TODO: only best bid, remove to have full OrderBooks
+            //if (bids.length >= 1)
+            //    break;
+        }
+        publishingOrderBook.bids = bids
+    
+        const ascOrderedAsksPrices = Array.from(internalOrderBook.asks.keys())
+                                           .sort(function(a, b) { return a-b; })
+        const asks = []
+        for(let price of ascOrderedAsksPrices) {
+            if (price == 0)
+                continue
+            let size = internalOrderBook.asks.get(price)
+            if (size == 0)
+                continue
+    
+            price = this._toFixedNumber(price)
+            size = this._toFixedNumber(size)
+    
+            asks.push({ 'price': price, 'volume': size })
+
+            // TODO: only best ask, remove to have full OrderBooks
+            //if (asks.length >= 1)
+            //    break;
+        }
+        publishingOrderBook.asks = asks
+    
+        return publishingOrderBook
+    }
+
     _mapInternalOrderBookToPublishOrderBook(internalOrderBook) {
         const symbol = mapping.MapAssetPairBackward(internalOrderBook.assetPair, this._settings)
     
