@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package common;
+
+import "google/protobuf/timestamp.proto";
+
+service OrderBooks {
+    rpc GetOrderBooks (GetOrderBooksRequest) returns (stream GetOrderBooksResponse);
+}
+
+message GetOrderBooksRequest {
+}
+
+message GetOrderBooksResponse {
+    repeated OrderBook order_books = 1;
+}
+
+message OrderBook {
+    string source = 1;
+    AssetPair asset_pair = 2;
+    repeated LimitOrder bids = 3;
+    repeated LimitOrder asks = 4;
+    google.protobuf.Timestamp timestamp = 5;
+    google.protobuf.Timestamp timestamp_in = 6;
+    google.protobuf.Timestamp timestamp_out = 7;
+}
+
+message AssetPair {
+    string base = 1;
+    string quote = 2;
+}
+
+message LimitOrder {
+    string price = 1;
+    string volume = 2;
+}

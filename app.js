@@ -12,6 +12,9 @@ const prometheus = require('prom-client')
 const collectDefaultMetrics = prometheus.collectDefaultMetrics
 collectDefaultMetrics()
 
+var protoLoader = require('@grpc/proto-loader');
+var grpc = require('@grpc/grpc-js');
+
 let settings
 let log
 let rabbitMq
@@ -92,7 +95,26 @@ async function subscribeToExchangeData(exchangeName, symbols, settings) {
 
         exchange_ws.on("ticker", async ticker => await handler.tickerEventHandle(ticker))
         exchange_ws.on("l2snapshot", async orderBook => await handler.l2snapshotEventHandle(orderBook))
-        exchange_ws.on("l2update", async updateOrderBook => await handler.l2updateEventHandle(updateOrderBook))
+
+        var packageDefinition = protoLoader.loadSync(
+            __dirname + '/gRPC/orderbooks.proto',
+            {keepCase: true,
+            longs: String,
+            enums: String,
+            defaults: true,
+            oneofs: true
+            });
+        this._protoPackage = grpc.loadPackageDefinition(packageDefinition).common;
+        this._server = new grpc.Server();
+        this._server.bindAsync('0.0.0.0:50052', grpc.ServerCredentials.createInsecure(), () => {
+            this._server.start();
+        });
+
+        this._server.addService(this._protoPackage.OrderBooks.service, {GetOrderBooks: function (call) {
+            exchange_ws.on("l2update", async updateOrderBook => await handler.l2updateEventHandleProtobuf(updateOrderBook, call))
+        }});
+
+        // exchange_ws.on("l2update", async updateOrderBook => await handler.l2updateEventHandle(updateOrderBook))
         exchange_ws.on("trade", async trade => await handler.tradesEventHandle(trade))
 
         log.info(`${exchange.id} - found ${availableMarkets.length} markets from config.`)
