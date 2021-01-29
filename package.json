@@ -13,7 +13,8 @@
     "node-fetch": "^2.2.1",
     "prom-client": "^13.0.0",
     "socket.io": "^2.3.0",
-    "winston": "^3.3.3"
+    "winston": "^3.3.3",
+    "zeromq": "5.2.0"
   },
   "devDependencies": {},
   "scripts": {

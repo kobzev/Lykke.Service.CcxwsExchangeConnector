@@ -3,16 +3,19 @@ const path = require('path');
 const LogFactory =  require('./utils/logFactory')
 const mapping = require('./utils/assetPairsMapping')
 const getSocketIO = require('./socketio/socketio')
+const getZeroMq = require('./zeromq/zeromq')
 const prometheus = require('prom-client');
 const Metrics = require('./prometheus/metrics')
 
 class ExchangeEventsHandler {
-    
     constructor(exchange, settings, rabbitMq) {
+        this.i = 0;
+
         this._exchange = exchange
         this._settings = settings
         this._rabbitMq = rabbitMq
         this._socketio = getSocketIO(settings)
+        this._zeroMq = getZeroMq(settings)
         this._orderBooks = new Map()
         this._lastTimePublished = new Map()
         this._log = LogFactory.create(path.basename(__filename), settings.Main.LoggingLevel)
@@ -152,6 +155,11 @@ class ExchangeEventsHandler {
 
             if (!this._settings.SocketIO.Disabled && this._socketio != null)
                 this._socketio.sockets.send(orderBook);
+
+            if (!this._settings.ZeroMq.Disabled && this._zeroMq != null) {
+                this._zeroMq.send(["orderbooks", JSON.stringify(orderBook)]);
+                this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
+            }
 
             Metrics.order_book_out_count.labels(orderBook.source, `${orderBook.base}/${orderBook.quote}`).inc()
 
