@@ -95,6 +95,14 @@ async function subscribeToExchangeData(exchangeName, symbols, settings) {
         exchange_ws.on("l2update", async updateOrderBook => await handler.l2updateEventHandle(updateOrderBook))
         exchange_ws.on("trade", async trade => await handler.tradesEventHandle(trade))
 
+        exchange_ws.on("error", err => log.err(err))
+        exchange_ws.on("connecting", () => log.warn('connecting...'))
+        exchange_ws.on("connected", () => log.info('connected.'))
+        exchange_ws.on("disconnected", () => log.warn('disconnected.'))
+        exchange_ws.on("closing", () => log.warn('closing...'))
+        exchange_ws.on("closed", () => log.warn('closed.'))
+        exchange_ws.on("reconnecting", () => log.warn('reconnecting...'))
+
         log.info(`${exchange.id} - found ${availableMarkets.length} markets from config.`)
 
         availableMarkets.forEach(market => {
