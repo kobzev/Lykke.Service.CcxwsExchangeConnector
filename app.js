@@ -96,7 +96,7 @@ async function subscribeToExchangeData(exchangeName, symbols, settings) {
         exchange_ws.on("trade", async trade => await handler.tradesEventHandle(trade))
 
         exchange_ws.on("error", err => log.err(err))
-        exchange_ws.on("connecting", () => log.warn('connecting...'))
+        exchange_ws.on("connecting", () => log.info('connecting...'))
         exchange_ws.on("connected", () => log.info('connected.'))
         exchange_ws.on("disconnected", () => log.warn('disconnected.'))
         exchange_ws.on("closing", () => log.warn('closing...'))
