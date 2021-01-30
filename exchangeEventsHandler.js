@@ -73,6 +73,7 @@ class ExchangeEventsHandler {
         if (updateOrderBook.timestampMs){
             const delayMs = moment.utc().valueOf() - updateOrderBook.timestampMs
             Metrics.order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delayMs)
+            Metrics.order_book_in_delay.observe(delayMs)
         }
 
         const key = updateOrderBook.marketId
