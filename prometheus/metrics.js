@@ -8,6 +8,12 @@ class Metrics {
       labelNames: ['exchange', 'symbol']
     });
 
+    static order_book_in_delay = new prometheus.Histogram({
+      name: 'order_book_in_delay',
+      help: 'Histogram of received order book delay.',
+      buckets: [0.1, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 40, 50, 100, 200, 300, 400, 500, 1000, 2000, 3000, 5000]
+    });
+
     static order_book_in_delay_ms = new prometheus.Gauge({
       name: 'order_book_in_delay_ms',
       help: 'Gauge of received order book delay.',

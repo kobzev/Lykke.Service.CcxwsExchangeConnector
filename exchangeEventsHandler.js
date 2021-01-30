@@ -43,8 +43,9 @@ class ExchangeEventsHandler {
         // metrics
         Metrics.order_book_in_count.labels(orderBook.exchange, `${orderBook.base}/${orderBook.quote}`).inc()
         if (orderBook.timestampMs){
-            const delayMs = moment.utc().unix() - moment(orderBook.timestampMs).unix()
+            const delayMs = moment.utc().valueOf() - orderBook.timestampMs
             Metrics.order_book_in_delay_ms.labels(orderBook.exchange, `${orderBook.base}/${orderBook.quote}`).set(delayMs)
+            Metrics.order_book_in_delay.observe(delayMs)
         }
 
         // update cache
@@ -70,7 +71,7 @@ class ExchangeEventsHandler {
     async l2updateEventHandle(updateOrderBook) {
         Metrics.order_book_in_count.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).inc()
         if (updateOrderBook.timestampMs){
-            const delayMs = moment.utc().unix() - moment(updateOrderBook.timestampMs).unix()
+            const delayMs = moment.utc().valueOf() - updateOrderBook.timestampMs
             Metrics.order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delayMs)
         }
 
@@ -152,7 +153,7 @@ class ExchangeEventsHandler {
 
             Metrics.order_book_out_count.labels(orderBook.source, `${orderBook.base}/${orderBook.quote}`).inc()
 
-            const delayMs = moment.utc().unix() - moment(orderBook.timestamp).unix()
+            const delayMs = moment.utc().valueOf() - orderBook.timestampMs
             Metrics.order_book_out_delay_ms.labels(orderBook.source, `${orderBook.assetPair.base}/${orderBook.assetPair.quote}`).set(delayMs)
 
             this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
