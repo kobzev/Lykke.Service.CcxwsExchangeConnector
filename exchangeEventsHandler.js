@@ -245,8 +245,8 @@ class ExchangeEventsHandler {
     
             bids.push({ 'price': price, 'volume': size })
 
-            // TODO: extract to config
-            if (bids.length >= 50)
+            const publishLevels = this._settings.Main.Events.OrderBooks.PublishLevels
+            if (publishLevels > 0 && bids.length >= publishLevels)
                 break;
         }
         publishingOrderBook.bids = bids
@@ -266,8 +266,8 @@ class ExchangeEventsHandler {
     
             asks.push({ 'price': price, 'volume': size })
 
-            // TODO: extract to config
-            if (asks.length >= 50)
+            const publishLevels = this._settings.Main.Events.OrderBooks.PublishLevels
+            if (publishLevels > 0 && asks.length >= publishLevels)
                 break;
         }
         publishingOrderBook.asks = asks
