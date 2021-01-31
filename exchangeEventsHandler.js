@@ -157,7 +157,7 @@ class ExchangeEventsHandler {
             const delayMs = moment.utc().valueOf() - orderBook.timestampMs
             Metrics.order_book_out_delay_ms.labels(orderBook.source, `${orderBook.assetPair.base}/${orderBook.assetPair.quote}`).set(delayMs)
 
-            this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
+            this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, bid:${orderBook.bids[0].price}, ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
         }
     }
 
