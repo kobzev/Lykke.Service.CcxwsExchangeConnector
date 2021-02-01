@@ -119,13 +119,13 @@ class ExchangeEventsHandler {
         Metrics.order_book_out_side_price.labels(ob.source, `${ob.assetPair}`, 'ask').set(ob.asks.keys().next().value)
 
         // publish
-
-        if (this._isTimeToPublishOrderBook(key))
+        const publish = this._isTimeToPublishOrderBook(key)
+        if (publish)
         {
             const publishingOrderBook = this._mapInternalOrderBookToPublishOrderBook(internalOrderBook)
             await this._publishOrderBook(publishingOrderBook)
 
-            this._lastTimePublished.set(key, moment.utc())
+            this._lastTimePublished.set(key, moment.utc().valueOf())
         }
     }
 
@@ -147,7 +147,8 @@ class ExchangeEventsHandler {
     async _publishOrderBook(orderBook) {
         if (this._settings.Main.Events.OrderBooks.Publish)
         {
-            await this._rabbitMq.send(this._settings.RabbitMq.OrderBooks, orderBook)
+            if (!this._settings.RabbitMq.Disabled && this._rabbitMq != null)
+                await this._rabbitMq.send(this._settings.RabbitMq.OrderBooks, orderBook)
 
             if (!this._settings.SocketIO.Disabled && this._socketio != null)
                 this._socketio.sockets.send(orderBook);
@@ -157,7 +158,11 @@ class ExchangeEventsHandler {
             const delayMs = moment.utc().valueOf() - orderBook.timestampMs
             Metrics.order_book_out_delay_ms.labels(orderBook.source, `${orderBook.assetPair.base}/${orderBook.assetPair.quote}`).set(delayMs)
 
-            this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, bid:${orderBook.bids[0].price}, ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
+            this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, ` + 
+                `levels:[${orderBook.bids.length}, ${orderBook.asks.length}], ` + 
+                `bbo:[${orderBook.bids[0].price}, ${orderBook.asks[0].price}], ` + 
+                `volumes: [${orderBook.bidsVolume.toFixed(2)}, ${orderBook.asksVolume.toFixed(2)}], ` + 
+                `timestamp: ${orderBook.timestamp}.`)
         }
     }
 
@@ -229,7 +234,9 @@ class ExchangeEventsHandler {
         publishingOrderBook.assetPair = { 'base': base, 'quote': quote }
         publishingOrderBook.timestamp = internalOrderBook.timestamp.toISOString()
         publishingOrderBook.timestampMs = internalOrderBook.timestampMs // optional, not available on most exchanges
-    
+        publishingOrderBook.bidsVolume = 0
+        publishingOrderBook.asksVolume = 0
+
         const descOrderedBidsPrices = Array.from(internalOrderBook.bids.keys())
                                            .sort(function(a, b) { return b-a; })
         const bids = []
@@ -240,6 +247,8 @@ class ExchangeEventsHandler {
             if (size == 0)
                 continue
     
+            publishingOrderBook.bidsVolume += size
+
             price = this._toFixedNumber(price)
             size = this._toFixedNumber(size)
     
@@ -261,6 +270,8 @@ class ExchangeEventsHandler {
             if (size == 0)
                 continue
     
+            publishingOrderBook.asksVolume += size
+
             price = this._toFixedNumber(price)
             size = this._toFixedNumber(size)
     
@@ -277,11 +288,11 @@ class ExchangeEventsHandler {
     
     // utils
 
-    async _isTimeToPublishOrderBook(key) {
+    _isTimeToPublishOrderBook(key) {
         const publishingIntervalMs = this._settings.Main.Events.OrderBooks.PublishingIntervalMs
-        const lastTimePublished = this._lastTimePublished.get(key)
-        const delaySinceLastTimePublished = moment.utc() - lastTimePublished
-        const isFirstTimePublishing = !lastTimePublished
+        const lastTimePublishedMs = this._lastTimePublished.get(key)
+        const delaySinceLastTimePublished = moment.utc().valueOf() - lastTimePublishedMs
+        const isFirstTimePublishing = !lastTimePublishedMs
         const isTimeToPublish = delaySinceLastTimePublished > publishingIntervalMs
 
         return isFirstTimePublishing || isTimeToPublish
