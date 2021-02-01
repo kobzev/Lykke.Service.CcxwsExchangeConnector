@@ -9,6 +9,7 @@ const prometheus = require('prom-client');
 const Metrics = require('./prometheus/metrics')
 var protoLoader = require('@grpc/proto-loader');
 var grpc = require('@grpc/grpc-js');
+var protobuf = require("protobufjs")
 
 class ExchangeEventsHandler {
     constructor(exchange, settings, rabbitMq) {
@@ -48,6 +49,9 @@ class ExchangeEventsHandler {
             this._call = call;
         }});
 
+        this._protoFile = new protobuf.Root().loadSync(__dirname + '/gRPC/orderbooks.proto', {keepCase: true});
+        this._protoBufRoot = this._protoFile.loadSync({root:"common"});
+        this._orderbookResponse = this._protoBufRoot.lookupType("GetOrderBooksResponse");
     }
 
     // event handlers
@@ -111,7 +115,7 @@ class ExchangeEventsHandler {
         // publish
         if (this._isTimeToPublishOrderBook(key))
         {
-            const publishingOrderBook = this._mapInternalOrderBookToPublishOrderBook(internalOrderBook)
+            const publishingOrderBook = this._mapInternalOrderBookToProtobufOrderBook(internalOrderBook)
             await this._publishOrderBook(publishingOrderBook)
             this._lastTimePublished.set(key, moment.utc())
         }
@@ -214,15 +218,22 @@ class ExchangeEventsHandler {
                 this._socketio.sockets.send(orderBook);
 
             if (!this._settings.ZeroMq.Disabled && this._zeroMq != null) {
-                this._zeroMq.send(["orderbooks", JSON.stringify(orderBook)]);
-                this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
-            }
 
-            // if (!this._settings.gRPC.Disabled && this._call != null) {
-            //     this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
-            //     this._call.write({ order_books: [orderBook] })
-            //     this._call.end();
-            // }
+                const timestamp = {};
+                const now = moment.utc()
+                timestamp.seconds = now / 1000;
+                timestamp.nanos = (now % 1000) * 1e6;
+                orderBook.timestamp_in = timestamp
+
+                if (orderBook.timestamp_in == undefined){
+                    this._log.debug(orderBook.timestamp_in.seconds);
+                }
+                var payload = this._orderbookResponse.create({order_books: [orderBook]})
+                const message = this._orderbookResponse.encode(payload).finish();
+
+                this._zeroMq.send(["orderbooks", message]);
+                // this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
+            }
 
             Metrics.order_book_out_count.labels(orderBook.source, `${orderBook.base}/${orderBook.quote}`).inc()
 
@@ -304,60 +315,61 @@ class ExchangeEventsHandler {
         orderbookTimestamp.seconds = internalOrderBook.timestamp / 1000;
         orderbookTimestamp.nanos = (internalOrderBook.timestamp % 1000) * 1e6;
 
-        const timestamp = {};
-        const now = moment.utc()
-        timestamp.seconds = now / 1000;
-        timestamp.nanos = (now % 1000) * 1e6;
-
         const publishingOrderBook = {}
-        publishingOrderBook.source = this._source
-        publishingOrderBook.assetPair = { 'base': base, 'quote': quote }
-        publishingOrderBook.timestamp =  orderbookTimestamp
-        publishingOrderBook.timestamp_in = timestamp
-        publishingOrderBook.timestamp_out = orderbookTimestamp
-    
-        const descOrderedBidsPrices = Array.from(internalOrderBook.bids.keys())
-                                           .sort(function(a, b) { return b-a; })
-        const bids = []
-        for(let price of descOrderedBidsPrices) {
-            if (price == 0)
-                continue
-            let size = internalOrderBook.bids.get(price)
-            if (size == 0)
-                continue
-    
-            price = this._toFixedNumber(price)
-            size = this._toFixedNumber(size)
-    
-            bids.push({ 'price': price, 'volume': size })
+        try {
+            publishingOrderBook.source = this._source
+            publishingOrderBook.assetPair = { 'base': base, 'quote': quote }
+            publishingOrderBook.timestamp =  orderbookTimestamp
+            publishingOrderBook.timestamp_out = orderbookTimestamp
+        
+            const descOrderedBidsPrices = Array.from(internalOrderBook.bids.keys())
+                                            .sort(function(a, b) { return b-a; })
+            const bids = []
+            for(let price of descOrderedBidsPrices) {
+                if (price == 0)
+                    continue
+                let size = internalOrderBook.bids.get(price)
+                if (size == 0)
+                    continue
+        
+                price = this._toFixedNumber(price)
+                size = this._toFixedNumber(size)
+        
+                bids.push({ 'price': price, 'volume': size })
 
-            // TODO: only best bid, remove to have full OrderBooks
-            //if (bids.length >= 1)
-            //    break;
-        }
-        publishingOrderBook.bids = bids
-    
-        const ascOrderedAsksPrices = Array.from(internalOrderBook.asks.keys())
-                                           .sort(function(a, b) { return a-b; })
-        const asks = []
-        for(let price of ascOrderedAsksPrices) {
-            if (price == 0)
-                continue
-            let size = internalOrderBook.asks.get(price)
-            if (size == 0)
-                continue
-    
-            price = this._toFixedNumber(price)
-            size = this._toFixedNumber(size)
-    
-            asks.push({ 'price': price, 'volume': size })
+                // TODO: only best bid, remove to have full OrderBooks
+                //if (bids.length >= 1)
+                //    break;
+            }
+            publishingOrderBook.bids = bids
+        
+            const ascOrderedAsksPrices = Array.from(internalOrderBook.asks.keys())
+                                            .sort(function(a, b) { return a-b; })
+            const asks = []
+            for(let price of ascOrderedAsksPrices) {
+                if (price == 0)
+                    continue
+                let size = internalOrderBook.asks.get(price)
+                if (size == 0)
+                    continue
+        
+                price = this._toFixedNumber(price)
+                size = this._toFixedNumber(size)
+        
+                asks.push({ 'price': price, 'volume': size })
 
-            // TODO: only best ask, remove to have full OrderBooks
-            //if (asks.length >= 1)
-            //    break;
-        }
-        publishingOrderBook.asks = asks
+                // TODO: only best ask, remove to have full OrderBooks
+                //if (asks.length >= 1)
+                //    break;
+            }
+            publishingOrderBook.asks = asks
     
+        }
+        catch(ex) {
+            this._log.debug(ex)
+        }
+      
+
         return publishingOrderBook
     }
 
@@ -422,6 +434,8 @@ class ExchangeEventsHandler {
         }
         publishingOrderBook.asks = asks
     
+        publishingOrderBook.timestampin = moment.utc()
+        
         return publishingOrderBook
     }
     
