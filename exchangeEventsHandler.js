@@ -4,7 +4,6 @@ const LogFactory =  require('./utils/logFactory')
 const mapping = require('./utils/assetPairsMapping')
 const getSocketIO = require('./socketio/socketio')
 const getZeroMq = require('./zeromq/zeromq')
-const getGrpc = require('./gRPC/dynamic_codegen.js')
 const prometheus = require('prom-client');
 const Metrics = require('./prometheus/metrics')
 var protoLoader = require('@grpc/proto-loader');
@@ -30,24 +29,6 @@ class ExchangeEventsHandler {
         const suffix = suffixConfig ? suffixConfig : ""
         this._source = this._exchange.name.replace(this._exchange.version, "").trim()
         this._source = this._source + suffix
-
-        var packageDefinition = protoLoader.loadSync(
-            __dirname + '/gRPC/orderbooks.proto',
-            {keepCase: true,
-            longs: String,
-            enums: String,
-            defaults: true,
-            oneofs: true
-            });
-        this._protoPackage = grpc.loadPackageDefinition(packageDefinition).common;
-        this._server = new grpc.Server();
-        this._server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () => {
-            this._server.start();
-        });
-
-        this._server.addService(this._protoPackage.OrderBooks.service, {GetOrderBooks: function (call) {
-            this._call = call;
-        }});
 
         this._protoFile = new protobuf.Root().loadSync(__dirname + '/gRPC/orderbooks.proto', {keepCase: true});
         this._protoBufRoot = this._protoFile.loadSync({root:"common"});
@@ -91,8 +72,7 @@ class ExchangeEventsHandler {
         // publish
         if (this._isTimeToPublishOrderBook(key))
         {
-            const publishingOrderBook = this._mapInternalOrderBookToPublishOrderBook(internalOrderBook)
-            await this._publishOrderBook(publishingOrderBook)
+            await this._publishOrderBook(internalOrderBook)
 
             this._lastTimePublished.set(key, moment.utc())
         }
@@ -108,26 +88,8 @@ class ExchangeEventsHandler {
         // publish
         if (this._isTimeToPublishOrderBook(key))
         {
-            const publishingOrderBook = this._mapInternalOrderBookToProtobufOrderBook(internalOrderBook)
-            await this._publishOrderBook(publishingOrderBook)
-            this._lastTimePublished.set(key, moment.utc())
-        }
-    }
+            await this._publishOrderBook(internalOrderBook)
 
-    async l2updateEventHandleProtobuf(updateOrderBook, call) {
-        const key = updateOrderBook.marketId
-
-        const internalOrderBook = this._orderBooks.get(key)
-
-        this._updateCache(internalOrderBook, updateOrderBook);
-
-        // publish
-        if (this._isTimeToPublishOrderBook(key))
-        {
-            const publishingOrderBook = this._mapInternalOrderBookToProtobufOrderBook(internalOrderBook)
-
-            call.write({ order_books: [publishingOrderBook] })
-            
             this._lastTimePublished.set(key, moment.utc())
         }
     }
@@ -191,30 +153,29 @@ class ExchangeEventsHandler {
         }
     }
 
-    async _publishOrderBook(orderBook) {
+    async _publishOrderBook(internalOrderBook) {
         if (this._settings.Main.Events.OrderBooks.Publish)
         {
+            const timestamp = internalOrderBook.timestamp;
+            const orderBook = this._mapInternalOrderBookToPublishOrderBook(internalOrderBook)
+
             await this._rabbitMq.send(this._settings.RabbitMq.OrderBooks, orderBook)
 
             if (!this._settings.SocketIO.Disabled && this._socketio != null)
                 this._socketio.sockets.send(orderBook);
 
             if (!this._settings.ZeroMq.Disabled && this._zeroMq != null) {
-
-                const timestamp = {};
-                const now = moment.utc()
-                timestamp.seconds = now / 1000;
-                timestamp.nanos = (now % 1000) * 1e6;
-                orderBook.timestamp_in = timestamp
-
-                if (orderBook.timestamp_in == undefined){
-                    this._log.debug(orderBook.timestamp_in.seconds);
+                if (this._settings.ZeroMq.Serializer == "protobuf") {
+                    const protoOrderBook = this._mapPublishOrderBookToProtobufOrderBook(orderBook, timestamp)
+                    var payload = this._orderbookResponse.create({order_books: [protoOrderBook]})
+                    const message = this._orderbookResponse.encode(payload).finish();
+                    this._zeroMq.send(["orderbooks", message]);
+                    // this._log.debug(`Order Book: ${protoOrderBook.source} ${protoOrderBook.asset}, bids:${protoOrderBook.bids.length}, asks:${protoOrderBook.asks.length}, best bid:${protoOrderBook.bids[0].price}, best ask:${protoOrderBook.asks[0].price}, timestamp: ${JSON.stringify(protoOrderBook.timestamp)}.`)
                 }
-                var payload = this._orderbookResponse.create({order_books: [orderBook]})
-                const message = this._orderbookResponse.encode(payload).finish();
-
-                this._zeroMq.send(["orderbooks", message]);
-                // this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
+                else if (this._settings.ZeroMq.Serializer == "json") {
+                    this._zeroMq.send(["orderbooks", JSON.stringify(orderBook)]);
+                    // this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
+                }
             }
 
             Metrics.order_book_out_count.labels(orderBook.source, `${orderBook.base}/${orderBook.quote}`).inc()
@@ -283,74 +244,28 @@ class ExchangeEventsHandler {
 
         return internalOrderBook
     }
-    
-    _mapInternalOrderBookToProtobufOrderBook(internalOrderBook) {
-        const symbol = mapping.MapAssetPairBackward(internalOrderBook.assetPair, this._settings)
-    
-        const base = symbol.substring(0, symbol.indexOf('/'))
-        const quote = symbol.substring(symbol.indexOf("/") + 1)
 
-        
-        const orderbookTimestamp = {};
-        orderbookTimestamp.seconds = internalOrderBook.timestamp / 1000;
-        orderbookTimestamp.nanos = (internalOrderBook.timestamp % 1000) * 1e6;
-
-        const publishingOrderBook = {}
-        try {
-            publishingOrderBook.source = this._source
-            publishingOrderBook.assetPair = { 'base': base, 'quote': quote }
-            publishingOrderBook.timestamp =  orderbookTimestamp
-            publishingOrderBook.timestamp_out = orderbookTimestamp
-        
-            const descOrderedBidsPrices = Array.from(internalOrderBook.bids.keys())
-                                            .sort(function(a, b) { return b-a; })
-            const bids = []
-            for(let price of descOrderedBidsPrices) {
-                if (price == 0)
-                    continue
-                let size = internalOrderBook.bids.get(price)
-                if (size == 0)
-                    continue
-        
-                price = this._toFixedNumber(price)
-                size = this._toFixedNumber(size)
-        
-                bids.push({ 'price': price, 'volume': size })
-
-                // TODO: only best bid, remove to have full OrderBooks
-                //if (bids.length >= 1)
-                //    break;
-            }
-            publishingOrderBook.bids = bids
-        
-            const ascOrderedAsksPrices = Array.from(internalOrderBook.asks.keys())
-                                            .sort(function(a, b) { return a-b; })
-            const asks = []
-            for(let price of ascOrderedAsksPrices) {
-                if (price == 0)
-                    continue
-                let size = internalOrderBook.asks.get(price)
-                if (size == 0)
-                    continue
-        
-                price = this._toFixedNumber(price)
-                size = this._toFixedNumber(size)
-        
-                asks.push({ 'price': price, 'volume': size })
-
-                // TODO: only best ask, remove to have full OrderBooks
-                //if (asks.length >= 1)
-                //    break;
-            }
-            publishingOrderBook.asks = asks
-    
+    _getProtoTimestamp(dateTime){
+        if (dateTime == null || dateTime == undefined){
+            return {};
         }
-        catch(ex) {
-            this._log.debug(ex)
-        }
-      
 
-        return publishingOrderBook
+        const protoTimestamp = {};
+        protoTimestamp.seconds = dateTime / 1000;
+        protoTimestamp.nanos = (dateTime % 1000) * 1e6;
+        return protoTimestamp
+    }
+
+    _mapPublishOrderBookToProtobufOrderBook(publishOrderBook, timestamp) {
+        const protoOrderBook = {}
+        protoOrderBook.source = publishOrderBook.source
+        protoOrderBook.assetPair = publishOrderBook.assetPair
+        protoOrderBook.bids = publishOrderBook.bids
+        protoOrderBook.asks = publishOrderBook.asks
+        protoOrderBook.timestamp = this._getProtoTimestamp(timestamp)
+        protoOrderBook.timestamp_in = this._getProtoTimestamp(publishOrderBook.timestampin)
+        protoOrderBook.timestampMs = this._getProtoTimestamp(publishOrderBook.timestampMs)
+        return protoOrderBook
     }
 
     _mapInternalOrderBookToPublishOrderBook(internalOrderBook) {
