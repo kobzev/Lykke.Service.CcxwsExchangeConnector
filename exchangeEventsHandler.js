@@ -4,10 +4,7 @@ const LogFactory =  require('./utils/logFactory')
 const mapping = require('./utils/assetPairsMapping')
 const getSocketIO = require('./socketio/socketio')
 const getZeroMq = require('./zeromq/zeromq')
-const prometheus = require('prom-client');
 const Metrics = require('./prometheus/metrics')
-var protoLoader = require('@grpc/proto-loader');
-var grpc = require('@grpc/grpc-js');
 var protobuf = require("protobufjs")
 
 class ExchangeEventsHandler {

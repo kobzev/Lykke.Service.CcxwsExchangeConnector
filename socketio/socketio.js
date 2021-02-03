@@ -18,10 +18,10 @@ function getSocketIO(settings) {
   if (!isDisabled)
     socketio = socketioServer.listen(port)
 
-  // hostPort = socketio.httpServer._connectionKey
-  // hostPort = hostPort.replace('6:::', 'localhost')
+  hostPort = socketio.httpServer._connectionKey
+  hostPort = hostPort.replace('6:::', 'localhost')
 
-  // _log.info(`Listening Socket.IO at http://${hostPort}`)
+  _log.info(`Listening Socket.IO at http://${hostPort}`)
 
   return socketio
 }
