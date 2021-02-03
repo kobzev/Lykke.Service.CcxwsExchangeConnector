@@ -12,9 +12,6 @@ const prometheus = require('prom-client')
 const collectDefaultMetrics = prometheus.collectDefaultMetrics
 collectDefaultMetrics()
 
-var protoLoader = require('@grpc/proto-loader');
-var grpc = require('@grpc/grpc-js');
-
 let settings
 let log
 let rabbitMq
