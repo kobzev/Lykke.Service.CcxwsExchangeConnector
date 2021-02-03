@@ -9,8 +9,6 @@ var protobuf = require("protobufjs")
 
 class ExchangeEventsHandler {
     constructor(exchange, settings, rabbitMq) {
-        this.i = 0;
-
         this._exchange = exchange
         this._settings = settings
         this._rabbitMq = rabbitMq
@@ -83,27 +81,12 @@ class ExchangeEventsHandler {
             Metrics.order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delayMs)
             Metrics.order_book_in_delay.observe(delayMs)
         }
+
         const key = updateOrderBook.marketId
 
+        // update cache
+
         const internalOrderBook = this._orderBooks.get(key)
-
-        this._updateCache(internalOrderBook, updateOrderBook);
-
-        // publish
-        if (this._isTimeToPublishOrderBook(key))
-        {
-            await this._publishOrderBook(internalOrderBook)
-
-            this._lastTimePublished.set(key, moment.utc())
-        }
-    }
-
-    _updateCache(internalOrderBook, updateOrderBook){
-        Metrics.order_book_in_count.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).inc()
-        if (updateOrderBook.timestampMs){
-            const delayMs = moment.utc().unix() - moment(updateOrderBook.timestampMs).unix()
-            Metrics.order_book_in_delay_ms.labels(updateOrderBook.exchange, `${updateOrderBook.base}/${updateOrderBook.quote}`).set(delayMs)
-        }
 
         if (!internalOrderBook) {
             this._log.warn(`Order book ${this._exchange.name} ${key} was not found in the cache during the 'order book update' event.`)
@@ -145,8 +128,7 @@ class ExchangeEventsHandler {
         const publish = this._isTimeToPublishOrderBook(key)
         if (publish)
         {
-            const publishingOrderBook = this._mapInternalOrderBookToPublishOrderBook(internalOrderBook)
-            await this._publishOrderBook(publishingOrderBook)
+            await this._publishOrderBook(internalOrderBook)
 
             this._lastTimePublished.set(key, moment.utc().valueOf())
         }
@@ -346,8 +328,6 @@ class ExchangeEventsHandler {
         }
         publishingOrderBook.asks = asks
     
-        publishingOrderBook.timestampin = moment.utc()
-        
         return publishingOrderBook
     }
     
