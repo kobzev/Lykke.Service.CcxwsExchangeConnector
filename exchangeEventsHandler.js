@@ -167,11 +167,11 @@ class ExchangeEventsHandler {
                     var payload = this._orderbookResponse.create({order_books: [protoOrderBook]})
                     const message = this._orderbookResponse.encode(payload).finish();
                     this._zeroMq.send(["orderbooks", message]);
-                    // this._log.debug(`Order Book: ${protoOrderBook.source} ${protoOrderBook.asset}, bids:${protoOrderBook.bids.length}, asks:${protoOrderBook.asks.length}, best bid:${protoOrderBook.bids[0].price}, best ask:${protoOrderBook.asks[0].price}, timestamp: ${JSON.stringify(protoOrderBook.timestamp)}.`)
+                    this._log.debug(`Order Book: ${protoOrderBook.source} ${protoOrderBook.asset}, bids:${protoOrderBook.bids.length}, asks:${protoOrderBook.asks.length}, best bid:${protoOrderBook.bids[0].price}, best ask:${protoOrderBook.asks[0].price}, timestamp: ${JSON.stringify(protoOrderBook.timestamp)}.`)
                 }
                 else if (this._settings.ZeroMq.Serializer == "json") {
                     this._zeroMq.send(["orderbooks", JSON.stringify(orderBook)]);
-                    // this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
+                    this._log.debug(`Order Book: ${orderBook.source} ${orderBook.asset}, bids:${orderBook.bids.length}, asks:${orderBook.asks.length}, best bid:${orderBook.bids[0].price}, best ask:${orderBook.asks[0].price}, timestamp: ${orderBook.timestamp}.`)
                 }
             }
 

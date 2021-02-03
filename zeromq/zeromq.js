@@ -20,7 +20,7 @@ function getZeroMq(settings) {
     zeromq.bindSync("tcp://127.0.0.1:" + port);
   }
 
-  _log.info(`Publisher bound to port ${port}`)
+  _log.info(`ZeroMQ is publishing from 'tcp://127.0.0.1:${port}'`)
 
   return zeromq
 }

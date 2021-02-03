@@ -22,7 +22,7 @@ message OrderBook {
     repeated LimitOrder asks = 4;
     google.protobuf.Timestamp timestamp = 5;
     google.protobuf.Timestamp timestampMs = 6;
-    google.protobuf.Timestamp timestampin = 7;
+    google.protobuf.Timestamp timestampIn = 7;
 }
 
 message AssetPair {
